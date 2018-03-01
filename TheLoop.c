@@ -42,6 +42,19 @@ int tab[NB_LIGNES][NB_COLONNES]
 void initGrille();
 bool CaseReservee(CASE Case);
 
+
+//déclaration & initilisation des mutex
+pthread_mutex_t mutexNbBilles = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutexTab = PTHREAD_MUTEX_INITIALIZER;
+
+int nbBilles;
+timespec attenteBille;
+
+void * threadPoseurBilles(void*);
+void * threadBille(void *);
+//void * threadEvent(void *);
+
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 int main(int argc,char* argv[])
 {
@@ -57,9 +70,18 @@ int main(int argc,char* argv[])
 
   //*******************
   initGrille();
+  
+	srand(time(NULL));
 
+	pthread_t poseur;
 
-  // Exemple d'utilisations des libriaires --> code à supprimer
+	//création et détachement du thread threadPoseurBilles
+	pthread_create(&poseur, NULL, threadPoseurBilles, NULL);
+	pthread_detach(poseur);
+	
+	pause();
+
+  /*// Exemple d'utilisations des libriaires --> code à supprimer
   struct timespec delai;
   delai.tv_sec = 0;
   delai.tv_nsec = 200000000;
@@ -117,7 +139,7 @@ int main(int argc,char* argv[])
   {
     event = ReadEvent();
     if (event.type == CROIX) ok = true;
-  } 
+  } */
 
   // Fermeture de la grille de jeu (SDL)
   Trace("(THREAD MAIN %d) Fermeture de la fenetre graphique...",pthread_self()); fflush(stdout);
@@ -177,4 +199,154 @@ bool CaseReservee(CASE Case)
   
   return false;
 }
+
+void * threadPoseurBilles(void* p)
+{
+	timespec sleepTime;
+	sleepTime.tv_nsec = 0;
+	int billeColor, cmptColor = 0;
+	pthread_t billeTid;
+	
+	//nombre de billes au départ
+	nbBilles = 60;
+	
+	//dessine les dizaines puis unités de nbBilles
+	DessineChiffre(11,12,nbBilles / 10);
+	DessineChiffre(11,13,nbBilles % 10);
+	
+	pthread_mutex_lock(&mutexNbBilles);
+	
+	while(nbBilles > 0)
+	{
+		pthread_mutex_unlock(&mutexNbBilles);
+		
+		//temps aléatoire entre deux billes
+		sleepTime.tv_sec = (rand() % 10 + 1);
+		nanosleep(&sleepTime, NULL);
+		
+		//ordre parution couleur billes
+		switch(cmptColor)
+		{
+			case 0 : 
+					billeColor = JAUNE;
+					cmptColor++;
+				break;
+			case 1 :
+					billeColor = ROUGE;
+					cmptColor++;
+				break;
+			case 2 : 
+					billeColor = VERT;
+					cmptColor++;
+				break;
+			case 3 : 
+					billeColor = VIOLET;
+					cmptColor = 0;
+				break;
+		}
+		
+		pthread_create(&billeTid, NULL, threadBille, &billeColor);
+		pthread_detach(billeTid);
+
+		pthread_mutex_lock(&mutexNbBilles);
+		
+		nbBilles--;
+		//dessine les dizaines puis unités de nbBilles
+		DessineChiffre(11,12,nbBilles / 10);
+		DessineChiffre(11,13,nbBilles % 10);
+
+	}
+	
+	pthread_mutex_unlock(&mutexNbBilles);
+	pthread_exit;
+	
+}
+
+void * threadBille(void * p)
+{
+	int row, column; 
+	int * couleur = (int *)p;
+	attenteBille.tv_nsec = 0;
+	attenteBille.tv_sec = 3;
+	
+	pthread_mutex_lock(&mutexTab);
+	
+	do //tant qu'il y au ne bille a la case random
+	{
+		pthread_mutex_unlock(&mutexTab);
+		
+		//row min = 9 row max = 14
+		row = (rand() % 6 + 9);
+		//column min = 0 column max = 9
+		column = (rand() % 9);
+		
+		pthread_mutex_lock(&mutexTab);
+		
+	}while(tab[row][column] != 0);
+
+	pthread_mutex_unlock(&mutexTab);
+	
+	DessineBille(row, column, * couleur);
+	
+	pthread_mutex_lock(&mutexTab);
+	tab[row][column] = * couleur;
+	pthread_mutex_unlock(&mutexTab);
+	
+	nanosleep(&attenteBille, NULL);
+	
+	EffaceCarre(row,column);
+	
+	pthread_mutex_lock(&mutexTab);
+	tab[row][column] = 0;
+	pthread_mutex_unlock(&mutexTab);
+
+	pthread_exit;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
