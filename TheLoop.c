@@ -50,6 +50,7 @@ pthread_mutex_t mutexTab = PTHREAD_MUTEX_INITIALIZER;
 int nbBilles;
 timespec attenteBille;
 
+
 void * threadPoseurBilles(void*);
 void * threadBille(void *);
 //void * threadEvent(void *);
@@ -72,14 +73,18 @@ int main(int argc,char* argv[])
   initGrille();
   
 	srand(time(NULL));
-
 	pthread_t poseur;
+	bool ok = false;
 
 	//création et détachement du thread threadPoseurBilles
 	pthread_create(&poseur, NULL, threadPoseurBilles, NULL);
-	pthread_detach(poseur);
 	
+	
+	pthread_join(poseur, NULL);
+	
+	setTitreGrilleSDL("GAME OVER");
 	pause();
+
 
   /*// Exemple d'utilisations des libriaires --> code à supprimer
   struct timespec delai;
@@ -208,7 +213,7 @@ void * threadPoseurBilles(void* p)
 	pthread_t billeTid;
 	
 	//nombre de billes au départ
-	nbBilles = 60;
+	nbBilles = 5;
 	
 	//dessine les dizaines puis unités de nbBilles
 	DessineChiffre(11,12,nbBilles / 10);
@@ -258,6 +263,9 @@ void * threadPoseurBilles(void* p)
 	}
 	
 	pthread_mutex_unlock(&mutexNbBilles);
+	
+	sleepTime.tv_sec = 3;
+	nanosleep(&sleepTime, NULL);
 	pthread_exit;
 	
 }
@@ -302,51 +310,4 @@ void * threadBille(void * p)
 
 	pthread_exit;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
