@@ -61,7 +61,7 @@ int indRequetesE = 0;
 int indRequetesL  = 0;
 int nbRequetesNonTraites = 0;
 
-//éclaration & initilisation des variables de conditions
+//Déclaration & initilisation des variables de conditions
 pthread_cond_t condRequetes = PTHREAD_COND_INITIALIZER;
 
 //prototypes threads
@@ -391,40 +391,122 @@ void * threadEvent(void *)
 
 void * threadStatues(void * p)
 {
-
-	CASE * sCase, vectCase;
-	dCase = (CASE*) p;
+	int i;
+	CASE * caseStatue, caseCourante, * chemin, caseArrive;
+	caseStatue = (CASE*) p;
+	caseCourante.L = caseStatue->L;
+	caseCourante.C = caseStatue->C;
+	int videTab[] = {VIDE};
 	
 	/*mise du tid threadStatues dans tab*/
 	pthread_mutex_lock(&mutexTab);
-	tab[dCase->L][dCase->C] = pthread_self();
+	tab[caseStatue->L][caseStatue->C] = pthread_self();
 	pthread_mutex_unlock(&mutexTab);
 	
-	DessineStatue(dCase->L, dCase->C, BAS, 0);
+	DessineStatue(caseStatue->L, caseStatue->C, BAS, 0);
 	
 	
+	timespec waitTime;
+	waitTime.tv_nsec = 0;
+	waitTime.tv_sec = 1;
 	
-	int val = 0;
-	
-	
-
 	while(1)
-	{
-		pthread_cond_wait(&condRequetes, &mutexRequetes);
+	{	
+		//attente d'une requete
+		pthread_mutex_lock(&mutexRequetes);
 		while(indRequetesL == indRequetesE)
+			pthread_cond_wait(&condRequetes, &mutexRequetes);
+		pthread_mutex_unlock(&mutexRequetes);
 
-
-		/*RechercheChemin(tab, 20, 15, &val, 1, dCase,requetes[indRequetesL], &vectCase);*/
-
-		/*
-			pthread_mutex_lock(&mutexRequetes);
-			if(indRequetesL == NB_MAX_REQUETES + 1)
-				indRequetesL = 0;
-			else
-				indRequetesL++;
-			pthread_mutex_unlock(&mutexRequetes);
-		*/
+		//recuperation de la case 
+		pthread_mutex_lock(&mutexRequetes);
+		caseArrive.L = requetes[indRequetesL].L;
+		caseArrive.C = requetes[indRequetesL].C;
 		
+		//incrémentation ou remise à 0 de l'indice requete
+		if(indRequetesL == NB_MAX_REQUETES + 1)
+			indRequetesL = 0;
+		else
+			indRequetesL++;
+		pthread_mutex_unlock(&mutexRequetes);
+		
+		Trace("requete:%d Tid:%d\n", indRequetesL, pthread_self());
+
+		//deplacement vers la bille			
+		pthread_mutex_lock(&mutexTab);
+		RechercheChemin(&tab[0][0], NB_LIGNES, NB_COLONNES, videTab, 1, caseCourante, caseArrive, &chemin);
+		
+		while(chemin->L != caseArrive.L || chemin->C != caseArrive.C)
+		{
+			Trace("1 Tid:%d\n", pthread_self());
+			DessineStatue(chemin->L, chemin->C, BAS, 0);
+			Trace("2 Tid:%d\n", pthread_self());
+			EffaceCarre(caseCourante.L, caseCourante.C);
+			Trace("3 Tid:%d\n", pthread_self());
+			tab[caseCourante.L][caseCourante.C] = 0;
+			Trace("4 Tid:%d\n", pthread_self());
+			tab[chemin->L][chemin->C] = pthread_self();
+			Trace("5 Tid:%d\n", pthread_self());		
+			pthread_mutex_unlock(&mutexTab);
+			Trace("6 Tid:%d\n", pthread_self());
+			caseCourante.L = chemin->L;
+			Trace("7 Tid:%d\n", pthread_self());
+			caseCourante.C = chemin->C;
+			Trace("8 Tid:%d\n", pthread_self());
+			nanosleep(&waitTime, NULL);
+			Trace("9 Tid:%d\n", pthread_self());
+			pthread_mutex_unlock(&mutexTab);
+			Trace("10 Tid:%d\n", pthread_self());
+			
+			pthread_mutex_lock(&mutexTab);
+			Trace("11 Tid:%d\n", pthread_self());
+			RechercheChemin(&tab[0][0], NB_LIGNES, NB_COLONNES, videTab, 1, caseCourante, caseArrive, &chemin);
+			Trace("12 Tid:%d\n", pthread_self());		
+		}
+			EffaceCarre(chemin->L, chemin->C);
+			Trace("13 Tid:%d\n", pthread_self());
+			pthread_mutex_unlock(&mutexTab);
+		 
+		 //retours vers la case originelle de la statue
+		Trace("14 Tid:%d\n", pthread_self());
+		 caseArrive.L = caseStatue->L;
+		 caseArrive.C = caseStatue->C;
+
+		Trace("15 Tid:%d\n", pthread_self());
+		while(caseCourante.L != caseArrive.L || caseCourante.C != caseArrive.C)
+		{
+			Trace("16 Tid:%d\n", pthread_self());
+			pthread_mutex_lock(&mutexTab);
+			Trace("17 Tid:%d\n", pthread_self());
+			RechercheChemin(&tab[0][0], NB_LIGNES, NB_COLONNES, videTab, 1, caseCourante, caseArrive, &chemin);
+			Trace("18 Tid:%d\n", pthread_self());
+			//DessineStatue(chemin->L, chemin->C, BAS, 0);
+			Trace("19 Tid:%d\n", pthread_self());
+			EffaceCarre(caseCourante.L, caseCourante.C);
+			Trace("20 Tid:%d\n", pthread_self());
+			tab[caseCourante.L][caseCourante.C] = 0;
+			Trace("21 Tid:%d\n", pthread_self());
+			tab[chemin->L][chemin->C] = pthread_self();
+			Trace("22 Tid:%d\n", pthread_self());
+			pthread_mutex_unlock(&mutexTab);
+			Trace("23 Tid:%d\n", pthread_self());
+			caseCourante.L = chemin->L;
+			Trace("24 Tid:%d\n", pthread_self());
+			caseCourante.C = chemin->C;
+			Trace("25 Tid:%d\n", pthread_self());
+			nanosleep(&waitTime, NULL);
+			Trace("26 Tid:%d\n", pthread_self());
+			
+			pthread_mutex_unlock(&mutexTab);
+			Trace("27 Tid:%d\n", pthread_self());
+		}
+		Trace("28 Tid:%d\n", pthread_self());		
+		pthread_mutex_lock(&mutexRequetes);
+		Trace("19 Tid:%d\n", pthread_self());
+		nbRequetesNonTraites--;
+		Trace("30 Tid:%d\n", pthread_self());
+		pthread_mutex_unlock(&mutexRequetes);		
+		Trace("31 Tid:%d\n", pthread_self());
 	}
 }
 
