@@ -100,7 +100,6 @@ int main(int argc,char* argv[])
   initGrille();
 
 //*******************
-
 	srand(time(NULL));
 	pthread_t poseur, expendable_t;
 	bool ok = false;
@@ -135,8 +134,6 @@ int main(int argc,char* argv[])
 	DBG("GAME OVER\n");
 	setTitreGrilleSDL("GAME OVER");
 	pause();
-
-
 
 
   /*Fermeture de la grille de jeu (SDL)*/
@@ -231,7 +228,6 @@ void * threadPoseurBilles(void* p)
 		pthread_mutex_lock(&mutexRequetes);
 		if(nbRequetesNonTraites == NB_MAX_REQUETES)
 		{
-			DBG("Quatres requets non traitées\n");
 			DessineBille(11, 11, GRIS);
 			blocked = 1;
 		}
@@ -376,10 +372,11 @@ void * threadEvent(void *)
 								requetes[indRequetesE].L = event.ligne;
 								requetes[indRequetesE].C = event.colonne;
 
+								indRequetesE++;
+
+								//remise à 0 de l'indice requeteE si necessaire
 								if(indRequetesE == (NB_MAX_REQUETES + 1))
 									indRequetesE = 0;
-								else
-									indRequetesE++;
 
 								nbRequetesNonTraites++;
 
@@ -437,7 +434,7 @@ void * threadStatues(void * p)
 	{
 		//attente d'une requete
 		pthread_mutex_lock(&mutexRequetes);
-		//while(indRequetesL == indRequetesE)
+		while(indRequetesL == indRequetesE)
 			pthread_cond_wait(&condRequetes, &mutexRequetes);
 
 			//recuperation de la case
@@ -446,11 +443,12 @@ void * threadStatues(void * p)
 			requetes[indRequetesL].L = 0;
 			requetes[indRequetesL].C = 0;
 
-			//incrémentation ou remise à 0 de l'indice requete
+			indRequetesL++;
+
+			//remise à 0 de l'indice requeteL si necessaire
 			if(indRequetesL == NB_MAX_REQUETES + 1)
 				indRequetesL = 0;
-			else
-				indRequetesL++;
+
 		pthread_mutex_unlock(&mutexRequetes);
 
 		DBG("requete: %d case[%d][%d] Tid:%d\n", indRequetesL, caseArrive.L, caseArrive.C, pthread_self());
@@ -463,7 +461,15 @@ void * threadStatues(void * p)
 
 			if (chemin)
 			{
-				DessineStatue(chemin->L, chemin->C, BAS, 0);
+				if(caseCourante.L < chemin->L)
+					DessineStatue(chemin->L, chemin->C, DROITE, JAUNE);
+				else if (caseCourante.L > chemin->L)
+					DessineStatue(chemin->L, chemin->C, GAUCHE, VIOLET);
+				else if (caseCourante.C > chemin->C)
+					DessineStatue(chemin->L, chemin->C, HAUT, VERT);
+				else
+					DessineStatue(chemin->L, chemin->C, BAS, ROUGE);
+
 				EffaceCarre(caseCourante.L, caseCourante.C);
 				tab[caseCourante.L][caseCourante.C] = VIDE;
 				tab[chemin->L][chemin->C] = pthread_self();
@@ -474,7 +480,10 @@ void * threadStatues(void * p)
 			pthread_mutex_unlock(&mutexTab);
 			nanosleep(&waitTime, NULL);
 		}
+
+		pthread_mutex_lock(&mutexTab);
 		EffaceCarre(caseArrive.L, caseArrive.C);
+		DessineStatue(caseArrive.L, caseArrive.C, BAS, 0);
 		pthread_mutex_unlock(&mutexTab);
 
 		//décrémentation du nombre de requete non traitées
