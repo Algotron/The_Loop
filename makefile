@@ -5,7 +5,7 @@ RESSOURCES=Ressources
 ECRAN=Ecran
 ASTAR=AStar
 
-CC = g++ -m64 -DSUN -I$(ECRAN) -I$(GRILLESDL) -I$(RESSOURCES) -I$(ASTAR) 
+CC = g++ -g -m64 -DLINUX -I$(ECRAN) -I$(GRILLESDL) -I$(RESSOURCES) -I$(ASTAR) 
 OBJS = $(ASTAR)/AStar.o $(GRILLESDL)/GrilleSDL.o $(RESSOURCES)/Ressources.o $(ECRAN)/Ecran.o
 PROGRAMS = TheLoop
 

@@ -47,6 +47,11 @@ int tab[NB_LIGNES][NB_COLONNES]
 void initGrille();
 bool CaseReservee(CASE Case);
 
+//macros de timining
+#define BILLETMAX 1 //temps aléatoire max entre deux billes
+#define BILLETMIN 1 //temps aléatoire max entre deux billes
+#define STATUENSEC 300000000 //nsec entre deux déplacements d'une statue
+#define STATUESEC 0 //sec entre deux déplacements d'une statue
 
 //déclaration & initilisation des mutex
 pthread_mutex_t mutexNbBilles = PTHREAD_MUTEX_INITIALIZER;
@@ -88,13 +93,13 @@ int main(int argc,char* argv[])
   initGrille();
 
 //*******************
-  
+
 	srand(time(NULL));
 	pthread_t poseur, expendable_t;
 	bool ok = false;
 	int col = 0;
 	CASE caseTab[4];
-	
+
 	/*insertion de la case pour chaque threadStatues*/
 	for(int i = 0; i < 4; i++)
 	{
@@ -105,18 +110,18 @@ int main(int argc,char* argv[])
 
 	/*création du thread threadPoseurBilles*/
 	pthread_create(&poseur, NULL, threadPoseurBilles, NULL);
-	
+
 	/*création du thread threadEvent*/
 	pthread_create(&expendable_t, NULL, threadEvent, NULL);
-	
+
 	/*création des 4 threads threadStatues*/
 	for(int i = 0; i < 4; i++)
 	{
 		pthread_create(&expendable_t, NULL, threadStatues, &caseTab[i]);
 	}
-	
+
 	pthread_join(poseur, NULL);
-	
+
 	setTitreGrilleSDL("GAME OVER");
 	pause();
 
@@ -137,7 +142,7 @@ void  initGrille()
   for (int L=0 ; L<NB_LIGNES ; L++)
     for (int C=0 ; C<NB_COLONNES ; C++)
       if (tab[L][C] == MUR) DessineMur(L,C,PIERRE);
-      
+
   DessineMur(11,11,METAL);
   DessineMur(13,11,METAL);
   DessineBille(13,11,GRIS);
@@ -178,7 +183,7 @@ bool CaseReservee(CASE Case)
   for (int L=8 ; L<=12 ; L++)
     for (int C=15 ; C<=18 ; C++)
       if ((Case.L == L) && (Case.C == C)) return true;
-  
+
   return false;
 }
 
@@ -188,25 +193,25 @@ void * threadPoseurBilles(void* p)
 	sleepTime.tv_nsec = 0;
 	int billeColor, stop, blocked = 0, cmptColor = 0;
 	pthread_t billeTid;
-	
+
 	//nombre de billes au départ
 	nbBilles = NBILLESMAX;
-	
+
 	//dessine les dizaines puis unités de nbBilles
 	DessineChiffre(11,12,nbBilles / 10);
 	DessineChiffre(11,13,nbBilles % 10);
 	DessineBille(11, 11, ROUGE);
-	
+
 	pthread_mutex_lock(&mutexNbBilles);
-	
+
 	while(nbBilles > 0)
 	{
 		pthread_mutex_unlock(&mutexNbBilles);
-		
+
 		//temps aléatoire entre deux billes
-		sleepTime.tv_sec = (rand() % 10 + 1);
+		sleepTime.tv_sec = (rand() % BILLETMAX + BILLETMIN);
 		nanosleep(&sleepTime, NULL);
-		
+
 		/*blocage de nouveau threadBille si nbRequetesNonTraites = NB_MAX_REQUETES
 		reprise si blocké et nbRequetesNonTraites <= NB_MAX_REQUETES / 2*/
 		pthread_mutex_lock(&mutexRequetes);
@@ -221,13 +226,13 @@ void * threadPoseurBilles(void* p)
 			DessineBille(11, 11, ROUGE);
 		}
 		pthread_mutex_unlock(&mutexRequetes);
-		
+
 		if(!blocked)
 		{
 			//ordre parution couleur billes
 			switch(cmptColor)
 			{
-				case 0 : 
+				case 0 :
 						billeColor = JAUNE;
 						cmptColor++;
 					break;
@@ -235,80 +240,80 @@ void * threadPoseurBilles(void* p)
 						billeColor = ROUGE;
 						cmptColor++;
 					break;
-				case 2 : 
+				case 2 :
 						billeColor = VERT;
 						cmptColor++;
 					break;
-				case 3 : 
+				case 3 :
 						billeColor = VIOLET;
 						cmptColor = 0;
 					break;
 			}
-			
+
 				/*création et detachement d'un thread threadBille*/
 				pthread_create(&billeTid, NULL, threadBille, &billeColor);
 				pthread_detach(billeTid);
 
 				pthread_mutex_lock(&mutexNbBilles);
-		
+
 				nbBilles--;
 				//dessine les dizaines puis unités de nbBilles
 				DessineChiffre(11,12,nbBilles / 10);
 				DessineChiffre(11,13,nbBilles % 10);
 		}
 	}
-	
+
 	pthread_mutex_unlock(&mutexNbBilles);
-	
+
 	DessineBille(11, 11, GRIS);
-	
+
 	sleepTime.tv_sec = 3;
 	nanosleep(&sleepTime, NULL);
 	pthread_exit;
-	
+
 }
 
 void * threadBille(void * p)
 {
-	int row, column; 
+	int row, column;
 	int * couleur = (int *)p;
 	attenteBille.tv_nsec = 0;
 	attenteBille.tv_sec = 3;
-	
+
 	pthread_mutex_lock(&mutexTab);
-	
+
 	do //tant qu'il y une bille a la case tirée
 	{
 		pthread_mutex_unlock(&mutexTab);
-		
+
 		//row min = 9 row max = 14
 		row = (rand() % 6 + 9);
 		//column min = 0 column max = 9
 		column = (rand() % 9);
-		
+
 		pthread_mutex_lock(&mutexTab);
-		
+
 	}while(tab[row][column] != 0);
 
 	pthread_mutex_unlock(&mutexTab);
-	
+
 	DessineBille(row, column, * couleur);
-	
+
 	/*met la couleur de la bille dans la case de tab*/
 	pthread_mutex_lock(&mutexTab);
 	tab[row][column] = * couleur;
 	pthread_mutex_unlock(&mutexTab);
-	
+
 	nanosleep(&attenteBille, NULL);
-	
+
 	/*Si apres le nanosleep la couleur n'est pas négative dans tab elle disparait*/
 	pthread_mutex_lock(&mutexTab);
 	if(tab[row][column] >= 0)
 	{
 		pthread_mutex_unlock(&mutexTab);
-		
+
 		EffaceCarre(row,column);
-	
+
 		pthread_mutex_lock(&mutexTab);
 		tab[row][column] = 0;
 		pthread_mutex_unlock(&mutexTab);
@@ -316,8 +321,8 @@ void * threadBille(void * p)
 	}
 	else
 			pthread_mutex_unlock(&mutexTab);
-	
-	
+
+
 	pthread_exit;
 }
 
@@ -327,43 +332,43 @@ void * threadEvent(void *)
 	{
 		EVENT_GRILLE_SDL event;
 		event = ReadEvent();
-		
+
 		switch(event.type)
 		{
 			case CROIX :
 					FermetureFenetreGraphique();
 					exit(0);
 				break;
-				
+
 			case CLIC_GAUCHE :
-			
+
 						pthread_mutex_lock(&mutexTab);
-						
+
 						/*si case cliquée est une couleur*/
 						if(tab[event.ligne][event.colonne] >= JAUNE && tab[event.ligne][event.colonne] <= VIOLET)
 						{
 							pthread_mutex_lock(&mutexRequetes);
-							
+
 							/*si le nombre de requetes non traitéesn'est pas dépassé */
 							if(nbRequetesNonTraites < NB_MAX_REQUETES)
 							{
 								/*ajout des billes capturées dans le tableau requetes*/
 								requetes[indRequetesE].L = event.ligne;
 								requetes[indRequetesE].C = event.colonne;
-							
+
 								if(indRequetesE == (NB_MAX_REQUETES + 1))
 									indRequetesE = 0;
 								else
 									indRequetesE++;
-								
+
 								nbRequetesNonTraites++;
-								
+
 								pthread_mutex_unlock(&mutexRequetes);
-								
+
 								DessinePrison(event.ligne, event.colonne, JAUNE);
 								/*inversion de la valeur couleur dans tab*/
 								tab[event.ligne][event.colonne] = -tab[event.ligne][event.colonne];
-								
+
 								pthread_cond_signal(&condRequetes);
 							}
 							else
@@ -371,21 +376,16 @@ void * threadEvent(void *)
 								pthread_mutex_unlock(&mutexRequetes);
 								DessineCroix(event.ligne, event.colonne);
 							}
-
-
 						}
 						pthread_mutex_unlock(&mutexTab);
 				break;
-				
+
 			case CLIC_DROIT :
-			
 				break;
-				
+
 			case CLAVIER :
-			
 				break;
 		}
-		
 	}
 }
 
@@ -397,116 +397,87 @@ void * threadStatues(void * p)
 	caseCourante.L = caseStatue->L;
 	caseCourante.C = caseStatue->C;
 	int videTab[] = {VIDE};
-	
+
 	/*mise du tid threadStatues dans tab*/
 	pthread_mutex_lock(&mutexTab);
 	tab[caseStatue->L][caseStatue->C] = pthread_self();
 	pthread_mutex_unlock(&mutexTab);
-	
+
 	DessineStatue(caseStatue->L, caseStatue->C, BAS, 0);
-	
-	
+
+
 	timespec waitTime;
-	waitTime.tv_nsec = 0;
-	waitTime.tv_sec = 1;
-	
+	waitTime.tv_nsec = STATUENSEC;
+	waitTime.tv_sec = STATUESEC;
+
 	while(1)
-	{	
+	{
 		//attente d'une requete
 		pthread_mutex_lock(&mutexRequetes);
 		while(indRequetesL == indRequetesE)
 			pthread_cond_wait(&condRequetes, &mutexRequetes);
+
+			//recuperation de la case
+			caseArrive.L = requetes[indRequetesL].L;
+			caseArrive.C = requetes[indRequetesL].C;
+
+			//incrémentation ou remise à 0 de l'indice requete
+			if(indRequetesL == NB_MAX_REQUETES + 1)
+				indRequetesL = 0;
+			else
+				indRequetesL++;
 		pthread_mutex_unlock(&mutexRequetes);
 
-		//recuperation de la case 
-		pthread_mutex_lock(&mutexRequetes);
-		caseArrive.L = requetes[indRequetesL].L;
-		caseArrive.C = requetes[indRequetesL].C;
-		
-		//incrémentation ou remise à 0 de l'indice requete
-		if(indRequetesL == NB_MAX_REQUETES + 1)
-			indRequetesL = 0;
-		else
-			indRequetesL++;
-		pthread_mutex_unlock(&mutexRequetes);
-		
 		Trace("requete:%d Tid:%d\n", indRequetesL, pthread_self());
 
-		//deplacement vers la bille			
-		pthread_mutex_lock(&mutexTab);
-		RechercheChemin(&tab[0][0], NB_LIGNES, NB_COLONNES, videTab, 1, caseCourante, caseArrive, &chemin);
-		
-		while(chemin->L != caseArrive.L || chemin->C != caseArrive.C)
+		//deplacement vers la bille
+
+		while(caseCourante.L != caseArrive.L || caseCourante.C != caseArrive.C)
 		{
-			Trace("1 Tid:%d\n", pthread_self());
-			DessineStatue(chemin->L, chemin->C, BAS, 0);
-			Trace("2 Tid:%d\n", pthread_self());
-			EffaceCarre(caseCourante.L, caseCourante.C);
-			Trace("3 Tid:%d\n", pthread_self());
-			tab[caseCourante.L][caseCourante.C] = 0;
-			Trace("4 Tid:%d\n", pthread_self());
-			tab[chemin->L][chemin->C] = pthread_self();
-			Trace("5 Tid:%d\n", pthread_self());		
-			pthread_mutex_unlock(&mutexTab);
-			Trace("6 Tid:%d\n", pthread_self());
-			caseCourante.L = chemin->L;
-			Trace("7 Tid:%d\n", pthread_self());
-			caseCourante.C = chemin->C;
-			Trace("8 Tid:%d\n", pthread_self());
-			nanosleep(&waitTime, NULL);
-			Trace("9 Tid:%d\n", pthread_self());
-			pthread_mutex_unlock(&mutexTab);
-			Trace("10 Tid:%d\n", pthread_self());
-			
 			pthread_mutex_lock(&mutexTab);
-			Trace("11 Tid:%d\n", pthread_self());
 			RechercheChemin(&tab[0][0], NB_LIGNES, NB_COLONNES, videTab, 1, caseCourante, caseArrive, &chemin);
-			Trace("12 Tid:%d\n", pthread_self());		
-		}
-			EffaceCarre(chemin->L, chemin->C);
-			Trace("13 Tid:%d\n", pthread_self());
+
+			if (chemin)
+			{
+				DessineStatue(chemin->L, chemin->C, BAS, 0);
+				EffaceCarre(caseCourante.L, caseCourante.C);
+				tab[caseCourante.L][caseCourante.C] = 0;
+				tab[chemin->L][chemin->C] = pthread_self();
+				caseCourante.L = chemin->L;
+				caseCourante.C = chemin->C;
+				free(chemin);
+			}
 			pthread_mutex_unlock(&mutexTab);
-		 
+			nanosleep(&waitTime, NULL);
+		}
+		EffaceCarre(caseArrive.L, caseArrive.C);
+		pthread_mutex_unlock(&mutexTab);
+
 		 //retours vers la case originelle de la statue
-		Trace("14 Tid:%d\n", pthread_self());
 		 caseArrive.L = caseStatue->L;
 		 caseArrive.C = caseStatue->C;
 
-		Trace("15 Tid:%d\n", pthread_self());
 		while(caseCourante.L != caseArrive.L || caseCourante.C != caseArrive.C)
 		{
-			Trace("16 Tid:%d\n", pthread_self());
 			pthread_mutex_lock(&mutexTab);
-			Trace("17 Tid:%d\n", pthread_self());
 			RechercheChemin(&tab[0][0], NB_LIGNES, NB_COLONNES, videTab, 1, caseCourante, caseArrive, &chemin);
-			Trace("18 Tid:%d\n", pthread_self());
-			//DessineStatue(chemin->L, chemin->C, BAS, 0);
-			Trace("19 Tid:%d\n", pthread_self());
-			EffaceCarre(caseCourante.L, caseCourante.C);
-			Trace("20 Tid:%d\n", pthread_self());
-			tab[caseCourante.L][caseCourante.C] = 0;
-			Trace("21 Tid:%d\n", pthread_self());
-			tab[chemin->L][chemin->C] = pthread_self();
-			Trace("22 Tid:%d\n", pthread_self());
+
+			if (chemin)
+			{
+				DessineStatue(chemin->L, chemin->C, BAS, 0);
+				EffaceCarre(caseCourante.L, caseCourante.C);
+				tab[caseCourante.L][caseCourante.C] = 0;
+				tab[chemin->L][chemin->C] = pthread_self();
+				caseCourante.L = chemin->L;
+				caseCourante.C = chemin->C;
+				free(chemin);
+			}
 			pthread_mutex_unlock(&mutexTab);
-			Trace("23 Tid:%d\n", pthread_self());
-			caseCourante.L = chemin->L;
-			Trace("24 Tid:%d\n", pthread_self());
-			caseCourante.C = chemin->C;
-			Trace("25 Tid:%d\n", pthread_self());
 			nanosleep(&waitTime, NULL);
-			Trace("26 Tid:%d\n", pthread_self());
-			
-			pthread_mutex_unlock(&mutexTab);
-			Trace("27 Tid:%d\n", pthread_self());
+
 		}
-		Trace("28 Tid:%d\n", pthread_self());		
 		pthread_mutex_lock(&mutexRequetes);
-		Trace("19 Tid:%d\n", pthread_self());
 		nbRequetesNonTraites--;
-		Trace("30 Tid:%d\n", pthread_self());
-		pthread_mutex_unlock(&mutexRequetes);		
-		Trace("31 Tid:%d\n", pthread_self());
+		pthread_mutex_unlock(&mutexRequetes);
 	}
 }
-
