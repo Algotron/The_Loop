@@ -1,2 +1,2 @@
 # The_Loop
-A game made of lots of useless threads
+A game in construction to learn the threads in PosX.
