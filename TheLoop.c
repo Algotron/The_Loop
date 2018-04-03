@@ -418,6 +418,7 @@ void * threadStatues(void * p)
 	caseCourante.L = caseStatue->L;
 	caseCourante.C = caseStatue->C;
 	int videTab[] = {VIDE};
+	int billeCouleur;
 
 	/*mise du tid threadStatues dans tab*/
 	pthread_mutex_lock(&mutexTab);
@@ -440,8 +441,6 @@ void * threadStatues(void * p)
 			//recuperation de la case
 			caseArrive.L = requetes[indRequetesL].L;
 			caseArrive.C = requetes[indRequetesL].C;
-			requetes[indRequetesL].L = 0;
-			requetes[indRequetesL].C = 0;
 
 			indRequetesL++;
 
@@ -450,6 +449,8 @@ void * threadStatues(void * p)
 				indRequetesL = 0;
 
 		pthread_mutex_unlock(&mutexRequetes);
+
+		billeCouleur = tab[caseArrive.L][caseArrive.C] * (-1);
 
 		DBG("requete: %d case[%d][%d] Tid:%d\n", indRequetesL, caseArrive.L, caseArrive.C, pthread_self());
 
@@ -462,13 +463,13 @@ void * threadStatues(void * p)
 			if (chemin)
 			{
 				if(caseCourante.L < chemin->L)
-					DessineStatue(chemin->L, chemin->C, DROITE, JAUNE);
+					DessineStatue(chemin->L, chemin->C, BAS, 0);
 				else if (caseCourante.L > chemin->L)
-					DessineStatue(chemin->L, chemin->C, GAUCHE, VIOLET);
+					DessineStatue(chemin->L, chemin->C, HAUT, 0);
 				else if (caseCourante.C > chemin->C)
-					DessineStatue(chemin->L, chemin->C, HAUT, VERT);
+					DessineStatue(chemin->L, chemin->C, GAUCHE, 0);
 				else
-					DessineStatue(chemin->L, chemin->C, BAS, ROUGE);
+					DessineStatue(chemin->L, chemin->C, DROITE, 0);
 
 				EffaceCarre(caseCourante.L, caseCourante.C);
 				tab[caseCourante.L][caseCourante.C] = VIDE;
@@ -502,7 +503,15 @@ void * threadStatues(void * p)
 
 			if (chemin)
 			{
-				DessineStatue(chemin->L, chemin->C, BAS, 0);
+				if(caseCourante.L < chemin->L)
+					DessineStatue(chemin->L, chemin->C, BAS, billeCouleur);
+				else if (caseCourante.L > chemin->L)
+					DessineStatue(chemin->L, chemin->C, HAUT, billeCouleur);
+				else if (caseCourante.C > chemin->C)
+					DessineStatue(chemin->L, chemin->C, GAUCHE, billeCouleur);
+				else
+					DessineStatue(chemin->L, chemin->C, DROITE, billeCouleur);
+
 				EffaceCarre(caseCourante.L, caseCourante.C);
 				tab[caseCourante.L][caseCourante.C] = VIDE;
 				tab[chemin->L][chemin->C] = pthread_self();
