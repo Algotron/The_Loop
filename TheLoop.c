@@ -9,6 +9,12 @@
 #include "Ressources.h"
 #include "AStar.h"
 
+typedef struct {
+  int id ;
+  CASE position ;
+  int bille ;
+} S_IDENTITE ;
+
 #ifdef DEBUG
 #define DBG(...) fprintf(stderr, " DBG(%s, %s(), %d): ", __FILE__, __FUNCTION__, __LINE__); fprintf(stderr, __VA_ARGS__)
 #else
@@ -56,13 +62,7 @@ bool CaseReservee(CASE Case);
 //macros de timining
 #define BILLETMAX 1 //temps aléatoire max entre deux billes
 #define BILLETMIN 1 //temps aléatoire max entre deux billes
-#define STATUENSEC 300000000 //nsec entre deux déplacements d'une statue
-#define STATUESEC 0 //sec entre deux déplacements d'une statue
-
-//déclaration & initilisation des mutex
-pthread_mutex_t mutexNbBilles = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t mutexTab = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t mutexRequetes = PTHREAD_MUTEX_INITIALIZER;
+#define STATUEMSEC 300 //milisec entre deux déplacements d'une statue
 
 //variables globales
 int nbBilles;
@@ -71,6 +71,13 @@ CASE requetes[NB_MAX_REQUETES + 1];
 int indRequetesE = 0;
 int indRequetesL  = 0;
 int nbRequetesNonTraites = 0;
+int videTab[] = {VIDE};
+pthread_key_t key;
+
+//déclaration & initilisation des mutex
+pthread_mutex_t mutexNbBilles = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutexTab = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutexRequetes = PTHREAD_MUTEX_INITIALIZER;
 
 //Déclaration & initilisation des variables de conditions
 pthread_cond_t condRequetes = PTHREAD_COND_INITIALIZER;
@@ -82,6 +89,9 @@ void * threadEvent(void *);
 void * threadStatues(void *);
 void * threadMage1(void *);
 void * threadMage2(void *);
+
+//prototypes de fonctions
+int deplacement(CASE destination,int delai);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 int main(int argc,char* argv[])
@@ -99,7 +109,9 @@ int main(int argc,char* argv[])
 
   initGrille();
 
-//*******************
+  //création de la key variable specifique
+  pthread_key_create(&key, NULL);
+
 	srand(time(NULL));
 	pthread_t poseur, expendable_t;
 	bool ok = false;
@@ -413,12 +425,12 @@ void * threadEvent(void *)
 void * threadStatues(void * p)
 {
 	int i;
-	CASE * caseStatue, caseCourante, * chemin, caseArrive;
+	CASE * caseStatue, caseCourante, caseArrive;
 	caseStatue = (CASE*) p;
 	caseCourante.L = caseStatue->L;
 	caseCourante.C = caseStatue->C;
-	int videTab[] = {VIDE};
-	int billeCouleur;
+	int billeCouleur = 0;
+  S_IDENTITE * sID = (S_IDENTITE *)malloc(sizeof(S_IDENTITE));
 
 	/*mise du tid threadStatues dans tab*/
 	pthread_mutex_lock(&mutexTab);
@@ -427,9 +439,13 @@ void * threadStatues(void * p)
 
 	DessineStatue(caseStatue->L, caseStatue->C, BAS, 0);
 
-	timespec waitTime;
-	waitTime.tv_nsec = STATUENSEC;
-	waitTime.tv_sec = STATUESEC;
+  //
+  sID->position.L = caseStatue->L;
+  sID->position.C = caseStatue->C;
+  sID->id = STATUE;
+  sID->bille = 0;
+  //
+  pthread_setspecific(key, (void*)sID);
 
 	while(1)
 	{
@@ -438,89 +454,93 @@ void * threadStatues(void * p)
 		while(indRequetesL == indRequetesE)
 			pthread_cond_wait(&condRequetes, &mutexRequetes);
 
-			//recuperation de la case
-			caseArrive.L = requetes[indRequetesL].L;
-			caseArrive.C = requetes[indRequetesL].C;
+		//recuperation de la case
+		caseArrive.L = requetes[indRequetesL].L;
+		caseArrive.C = requetes[indRequetesL].C;
 
-			indRequetesL++;
+		indRequetesL++;
 
-			//remise à 0 de l'indice requeteL si necessaire
-			if(indRequetesL == NB_MAX_REQUETES + 1)
-				indRequetesL = 0;
-
+		//remise à 0 de l'indice requeteL si necessaire
+		if(indRequetesL == NB_MAX_REQUETES + 1)
+			indRequetesL = 0;
 		pthread_mutex_unlock(&mutexRequetes);
-
-		billeCouleur = tab[caseArrive.L][caseArrive.C] * (-1);
 
 		DBG("requete: %d case[%d][%d] Tid:%d\n", indRequetesL, caseArrive.L, caseArrive.C, pthread_self());
 
-		//deplacement vers la bille
-		while(caseCourante.L != caseArrive.L || caseCourante.C != caseArrive.C)
-		{
-			pthread_mutex_lock(&mutexTab);
-			RechercheChemin(&tab[0][0], NB_LIGNES, NB_COLONNES, videTab, 1, caseCourante, caseArrive, &chemin);
+    //deplacement vers la bille
+    deplacement(caseArrive,STATUEMSEC);
 
-			if (chemin)
-			{
-				if(caseCourante.L < chemin->L)
-					DessineStatue(chemin->L, chemin->C, BAS, 0);
-				else if (caseCourante.L > chemin->L)
-					DessineStatue(chemin->L, chemin->C, HAUT, 0);
-				else if (caseCourante.C > chemin->C)
-					DessineStatue(chemin->L, chemin->C, GAUCHE, 0);
-				else
-					DessineStatue(chemin->L, chemin->C, DROITE, 0);
+    //décrémentation du nombre de requete non traitées
+    pthread_mutex_lock(&mutexRequetes);
+    nbRequetesNonTraites--;
+    pthread_mutex_unlock(&mutexRequetes);
 
-				EffaceCarre(caseCourante.L, caseCourante.C);
-				tab[caseCourante.L][caseCourante.C] = VIDE;
-				tab[chemin->L][chemin->C] = pthread_self();
-				caseCourante.L = chemin->L;
-				caseCourante.C = chemin->C;
-				free(chemin);
-			}
-			pthread_mutex_unlock(&mutexTab);
-			nanosleep(&waitTime, NULL);
-		}
+    //deplacement vers place statue
+    deplacement(*caseStatue,STATUEMSEC);
+  }
+}
 
-		pthread_mutex_lock(&mutexTab);
-		EffaceCarre(caseArrive.L, caseArrive.C);
-		DessineStatue(caseArrive.L, caseArrive.C, BAS, 0);
-		pthread_mutex_unlock(&mutexTab);
+/**********************************************************************/
+/*   deplace un mage ou statue d'une case à une autre.                */
+/*   CASE destination : case vers laquelle l'ojbet doit se diriger    */
+/*   int delai temps en milisecondes entre chaque déplacement         */
+/**********************************************************************/
+int deplacement(CASE destination,int delai)
+{
+  CASE  * chemin;
+  timespec waitTime;
+	waitTime.tv_sec = 0;
+  waitTime.tv_nsec = (delai - 0) * 1000000;
 
-		//décrémentation du nombre de requete non traitées
-		pthread_mutex_lock(&mutexRequetes);
-		nbRequetesNonTraites--;
-		pthread_mutex_unlock(&mutexRequetes);
+  S_IDENTITE * sID = (S_IDENTITE *)malloc(sizeof(S_IDENTITE));
+  int couleur = 0;
 
-		 //retours vers la case originelle de la statue
-		 caseArrive.L = caseStatue->L;
-		 caseArrive.C = caseStatue->C;
+//récupération des données de la v specifique
+  sID = (S_IDENTITE *)pthread_getspecific(key);
 
-		while(caseCourante.L != caseArrive.L || caseCourante.C != caseArrive.C)
-		{
-			pthread_mutex_lock(&mutexTab);
-			RechercheChemin(&tab[0][0], NB_LIGNES, NB_COLONNES, videTab, 1, caseCourante, caseArrive, &chemin);
+  if(sID->bille == 0);
+    couleur = abs(tab[destination.L][destination.C]);
 
-			if (chemin)
-			{
-				if(caseCourante.L < chemin->L)
-					DessineStatue(chemin->L, chemin->C, BAS, billeCouleur);
-				else if (caseCourante.L > chemin->L)
-					DessineStatue(chemin->L, chemin->C, HAUT, billeCouleur);
-				else if (caseCourante.C > chemin->C)
-					DessineStatue(chemin->L, chemin->C, GAUCHE, billeCouleur);
-				else
-					DessineStatue(chemin->L, chemin->C, DROITE, billeCouleur);
+  while(sID->position.L != destination.L || sID->position.C != destination.C)
+  {
+    pthread_mutex_lock(&mutexTab);
+    RechercheChemin(&tab[0][0], NB_LIGNES, NB_COLONNES, videTab, 1, sID->position, destination, &chemin);
 
-				EffaceCarre(caseCourante.L, caseCourante.C);
-				tab[caseCourante.L][caseCourante.C] = VIDE;
-				tab[chemin->L][chemin->C] = pthread_self();
-				caseCourante.L = chemin->L;
-				caseCourante.C = chemin->C;
-				free(chemin);
-			}
-			pthread_mutex_unlock(&mutexTab);
-			nanosleep(&waitTime, NULL);
-		}
-	}
+    if (chemin)
+    {
+      //orientation de la statue
+      if(sID->position.L < chemin->L)
+        DessineStatue(chemin->L, chemin->C, BAS, sID->bille);
+      else if (sID->position.L > chemin->L)
+        DessineStatue(chemin->L, chemin->C, HAUT, sID->bille);
+      else if (sID->position.C > chemin->C)
+        DessineStatue(chemin->L, chemin->C, GAUCHE, sID->bille);
+      else
+        DessineStatue(chemin->L, chemin->C, DROITE, sID->bille);
+
+      EffaceCarre(sID->position.L, sID->position.C);
+      tab[sID->position.L][sID->position.C] = VIDE;
+      tab[chemin->L][chemin->C] = pthread_self();
+      sID->position.L = chemin->L;
+      sID->position.C = chemin->C;
+      //mise à jour de la position dans la v specifique
+      pthread_setspecific(key, (void*)sID);
+      free(chemin);
+    }
+    pthread_mutex_unlock(&mutexTab);
+    nanosleep(&waitTime, NULL);
+  }
+
+  pthread_mutex_lock(&mutexTab);
+  EffaceCarre(sID->position.L, sID->position.C);
+  DessineStatue(sID->position.L, sID->position.C, BAS, couleur);
+  pthread_mutex_unlock(&mutexTab);
+
+  //determine la  couleur de la bille du prochain évènement. Pas de couleur si pas de bille
+  sID->bille = couleur;
+
+  //mise a jour de bille dans v specifique
+  pthread_setspecific(key, (void*)sID);
+  return 0;
+
 }
