@@ -56,6 +56,10 @@ int main(int argc,char* argv[])
 		pthread_create(&expendable_t, NULL, threadStatues, &caseTab[i]);
 	}
 
+  /*Création du thread threadMage1*/
+  DBG("création du thread threadMage1\n");
+  pthread_create(&expendable_t, NULL, threadMage1, NULL);
+
 	pthread_join(poseur, NULL);
 
 	DBG("GAME OVER\n");
@@ -342,7 +346,6 @@ void * threadStatues(void * param)
 	caseStatue = (CASE*) param;
 	caseCourante.L = caseStatue->L;
 	caseCourante.C = caseStatue->C;
-	int billeCouleur = 0;
   S_IDENTITE * sID = (S_IDENTITE *)malloc(sizeof(S_IDENTITE));
   timespec tPile;
 
@@ -356,16 +359,18 @@ void * threadStatues(void * param)
 
 	DessineStatue(caseStatue->L, caseStatue->C, BAS, 0);
 
-  //
+  //initilisation v specifique
   sID->position.L = caseStatue->L;
   sID->position.C = caseStatue->C;
   sID->id = STATUE;
-  sID->bille = 0;
   //
-  pthread_setspecific(key, (void*)sID);
 
 	while(1)
 	{
+    //(ré)initilisation bille V specifique
+    sID->bille = 0;
+    pthread_setspecific(key, (void*)sID);
+
 		//attente d'une requete
 		pthread_mutex_lock(&mutexRequetes);
 		while(indRequetesL == indRequetesE)
@@ -385,7 +390,10 @@ void * threadStatues(void * param)
 		DBG("requete: %d case[%d][%d] Tid:%d\n", indRequetesL, caseArrive.L, caseArrive.C, pthread_self());
 
     //deplacement vers la bille
-    billeCouleur = deplacement(caseArrive,STATUEMSEC);
+    sID->bille = deplacement(caseArrive,STATUEMSEC);
+
+    //on donne la couleurs de la bille qui remonte
+    pthread_setspecific(key, (void*)sID);
 
     //décrémentation du nombre de requete non traitées
     pthread_mutex_lock(&mutexRequetes);
@@ -397,7 +405,7 @@ void * threadStatues(void * param)
 
     //dessine la statue en attente avec la bille en main
     sID = (S_IDENTITE *)pthread_getspecific(key);
-    DessineStatue(sID->position.L, sID->position.C, BAS, billeCouleur);
+    DessineStatue(sID->position.L, sID->position.C, BAS, sID->bille);
 
     //attente d'une place dans la pile
     pthread_mutex_lock(&mutexPile);
@@ -410,17 +418,17 @@ void * threadStatues(void * param)
 
     //insertion couleurBille dans tab
     pthread_mutex_lock(&mutexTab);
-    tab[0][indPile + 12] = -billeCouleur;
+    tab[0][indPile + 12] = -sID->bille;
     pthread_mutex_unlock(&mutexTab);
 
     //Dessine la bille case 12-13-14-15-16-17
-    DessineBille(0, indPile + 12, billeCouleur);
+    DessineBille(0, indPile + 12, sID->bille);
 
     indPile++;
 
     pthread_mutex_unlock(&mutexPile);
 
-    //la staue a déposée la bille on la redessine sans bille
+    //la statue a déposée la bille on la redessine sans bille
     DessineStatue(sID->position.L, sID->position.C, BAS, 0);
 
     //notification d'une nouvelle bille dans la pille à Mage1
@@ -437,18 +445,19 @@ int deplacement(CASE destination,int delai)
 {
   CASE  * chemin;
   timespec waitTime;
-  int couleur = 0;
   S_IDENTITE * sID = (S_IDENTITE *)malloc(sizeof(S_IDENTITE));
+  int couleur;
 
-	waitTime.tv_sec = 0;
-  waitTime.tv_nsec = (delai - 0) * 1000000;
-
+	waitTime.tv_sec = delai / 1000;
+  waitTime.tv_nsec = (delai - waitTime.tv_sec) * 1000000;
 
   //récupération des données de la v specifique
   sID = (S_IDENTITE *)pthread_getspecific(key);
 
-  if(sID->bille == 0);
-    couleur = abs(tab[destination.L][destination.C]);
+  if(sID->id == STATUE)
+    couleur = -tab[destination.L][destination.C];
+  else
+    couleur = -tab[0][destination.C];
 
   while(sID->position.L != destination.L || sID->position.C != destination.C)
   {
@@ -504,9 +513,6 @@ int deplacement(CASE destination,int delai)
   EffaceCarre(sID->position.L, sID->position.C);
   pthread_mutex_unlock(&mutexTab);
 
-  //determine la  couleur de la bille du prochain évènement. Pas de couleur si pas de bille
-  sID->bille = couleur;
-
   //mise a jour de bille dans v specifique
   pthread_setspecific(key, (void*)sID);
 
@@ -516,7 +522,73 @@ int deplacement(CASE destination,int delai)
 
 void * threadMage1(void * param)
 {
+  S_IDENTITE * sID = (S_IDENTITE *)malloc(sizeof(S_IDENTITE));
+  CASE caseMage1, caseEchange, casePile;
+  int couleur;
 
+  //initilisation cases données
+  caseMage1.L = 1;
+  caseMage1.C =11;
+  caseEchange.L = 5;
+  caseEchange.C = 12;
+
+  DessineMage(caseMage1.L, caseMage1.C, DROITE, 0);
+
+  // initilisation V specifique
+  sID->position.L = 1;
+  sID->position.C = 11;
+  sID->id = MAGE;
+  sID->bille = 0;
+  pthread_setspecific(key, (void*)sID);
+
+  while(1)
+	{
+		//attente d'une bille
+		pthread_mutex_lock(&mutexPile);
+		while(indPile == 0)
+			pthread_cond_wait(&condPile, &mutexPile);
+
+    //récupération du déplacement
+    casePile.L = 1;
+    casePile.C = indPile + 11;
+    pthread_mutex_unlock(&mutexPile);
+
+    //déplacement haut de la pile
+    couleur = deplacement(casePile, 300);
+    sID = (S_IDENTITE *)pthread_getspecific(key);
+    sID->bille = couleur;
+    pthread_setspecific(key, (void*)sID);
+
+    //supression de la bille dans tab
+    pthread_mutex_lock(&mutexTab);
+    tab[0][sID->position.C] = VIDE;
+    pthread_mutex_unlock(&mutexTab);
+
+    pthread_mutex_lock(&mutexPile);
+    indPile--;
+    pthread_mutex_unlock(&mutexPile);
+
+    EffaceCarre(0, sID->position.C);
+
+    //dessine mage avec la bille
+    DessineMage(sID->position.L, sID->position.C, DROITE, couleur);
+
+    //se deplace vers la case d'échange
+    deplacement(caseEchange, 300);
+
+    //échange
+
+    //retour sans bille
+    sID = (S_IDENTITE *)pthread_getspecific(key);
+    sID->bille = 0;
+    pthread_setspecific(key, (void*)sID);
+    
+    //retourne vers sa case de départ
+    deplacement(caseMage1, 300);
+
+    //redessine le mage sans bille vers la DROITE
+    DessineMage(caseMage1.L, caseMage1.C, DROITE, 0);
+  }
 }
 
 void * threadMage2(void * param)
