@@ -4,96 +4,11 @@
 #include <pthread.h>
 #include <signal.h>
 #include <time.h>
-#include "Ecran.h"
 #include "GrilleSDL.h"
 #include "Ressources.h"
 #include "AStar.h"
+#include "TheLoop.h"
 
-typedef struct {
-  int id ;
-  CASE position ;
-  int bille ;
-} S_IDENTITE ;
-
-#ifdef DEBUG
-#define DBG(...) fprintf(stderr, " DBG(%s, %s(), %d): ", __FILE__, __FUNCTION__, __LINE__); fprintf(stderr, __VA_ARGS__)
-#else
-#define DBG(...)
-#endif
-
-// Dimensions de la grille de jeu
-#define NB_LIGNES   15
-#define NB_COLONNES 20
-
-// Macros utilisees dans le tableau tab
-#define VIDE     0
-#define MUR      1
-
-// Macros utilisees pour l'identite d'un thread
-#define STATUE   2
-#define MAGE     3
-#define PISTON   4
-
-//nombre de billes au lencement
-#define NBILLESMAX 60
-
-#define NB_MAX_REQUETES 4
-
-int tab[NB_LIGNES][NB_COLONNES]
-={ {0,1,1,0,1,1,0,1,1,0,1,1,0,0,0,0,0,0,1,1},
-   {0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0},
-   {1,1,0,1,0,0,1,0,1,1,1,1,1,1,1,1,1,1,1,0},
-   {0,0,0,1,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0},
-   {0,1,1,1,0,0,1,1,1,0,1,0,1,1,1,1,1,1,1,1},
-   {0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0},
-   {0,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,0},
-   {0,0,0,0,0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,0},
-   {1,1,0,0,1,1,0,0,1,1,1,1,1,1,1,0,0,0,0,1},
-   {0,0,0,0,0,0,0,0,0,0,1,0,0,0,1,0,0,0,0,1},
-   {0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,0,0,0,1},
-   {0,0,0,0,0,0,0,0,0,0,1,0,0,0,1,0,0,0,0,1},
-   {0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,0,0,0,1},
-   {0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0},
-   {0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1}};
-
-void initGrille();
-bool CaseReservee(CASE Case);
-
-//macros de timining
-#define BILLETMAX 1 //temps aléatoire max entre deux billes
-#define BILLETMIN 1 //temps aléatoire max entre deux billes
-#define STATUEMSEC 300 //milisec entre deux déplacements d'une statue
-
-//variables globales
-int nbBilles;
-timespec attenteBille;
-CASE requetes[NB_MAX_REQUETES + 1];
-int indRequetesE = 0;
-int indRequetesL  = 0;
-int nbRequetesNonTraites = 0;
-int videTab[] = {VIDE};
-pthread_key_t key;
-
-//déclaration & initilisation des mutex
-pthread_mutex_t mutexNbBilles = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t mutexTab = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t mutexRequetes = PTHREAD_MUTEX_INITIALIZER;
-
-//Déclaration & initilisation des variables de conditions
-pthread_cond_t condRequetes = PTHREAD_COND_INITIALIZER;
-
-//prototypes threads
-void * threadPoseurBilles(void*);
-void * threadBille(void *);
-void * threadEvent(void *);
-void * threadStatues(void *);
-void * threadMage1(void *);
-void * threadMage2(void *);
-
-//prototypes de fonctions
-int deplacement(CASE destination,int delai);
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 int main(int argc,char* argv[])
 {
   srand((unsigned)time(NULL));
@@ -157,7 +72,6 @@ int main(int argc,char* argv[])
   exit(0);
 }
 
-//*********************************************************************************************
 void  initGrille()
 {
   for (int L=0 ; L<NB_LIGNES ; L++)
@@ -169,7 +83,6 @@ void  initGrille()
   DessineBille(13,11,GRIS);
 }
 
-//*********************************************************************************************
 bool CaseReservee(CASE Case)
 {
   // Cases depart des statues
@@ -208,7 +121,7 @@ bool CaseReservee(CASE Case)
   return false;
 }
 
-void * threadPoseurBilles(void* p)
+void * threadPoseurBilles(void* param)
 {
 	timespec sleepTime;
 	sleepTime.tv_nsec = 0;
@@ -298,10 +211,10 @@ void * threadPoseurBilles(void* p)
 
 }
 
-void * threadBille(void * p)
+void * threadBille(void * param)
 {
 	int row, column;
-	int * couleur = (int *)p;
+	int * couleur = (int *)param;
 	attenteBille.tv_nsec = 0;
 	attenteBille.tv_sec = 3;
 
@@ -351,7 +264,7 @@ void * threadBille(void * p)
 	pthread_exit;
 }
 
-void * threadEvent(void *)
+void * threadEvent(void * param)
 {
 	EVENT_GRILLE_SDL event;
 	while(1)
@@ -422,15 +335,19 @@ void * threadEvent(void *)
 	}
 }
 
-void * threadStatues(void * p)
+void * threadStatues(void * param)
 {
 	int i;
 	CASE * caseStatue, caseCourante, caseArrive;
-	caseStatue = (CASE*) p;
+	caseStatue = (CASE*) param;
 	caseCourante.L = caseStatue->L;
 	caseCourante.C = caseStatue->C;
 	int billeCouleur = 0;
   S_IDENTITE * sID = (S_IDENTITE *)malloc(sizeof(S_IDENTITE));
+  timespec tPile;
+
+  tPile.tv_nsec = 0;
+  tPile.tv_sec = 1;
 
 	/*mise du tid threadStatues dans tab*/
 	pthread_mutex_lock(&mutexTab);
@@ -468,7 +385,7 @@ void * threadStatues(void * p)
 		DBG("requete: %d case[%d][%d] Tid:%d\n", indRequetesL, caseArrive.L, caseArrive.C, pthread_self());
 
     //deplacement vers la bille
-    deplacement(caseArrive,STATUEMSEC);
+    billeCouleur = deplacement(caseArrive,STATUEMSEC);
 
     //décrémentation du nombre de requete non traitées
     pthread_mutex_lock(&mutexRequetes);
@@ -477,6 +394,37 @@ void * threadStatues(void * p)
 
     //deplacement vers place statue
     deplacement(*caseStatue,STATUEMSEC);
+
+    //dessine la statue en attente avec la bille en main
+    sID = (S_IDENTITE *)pthread_getspecific(key);
+    DessineStatue(sID->position.L, sID->position.C, BAS, billeCouleur);
+
+    //attente d'une place dans la pile
+    pthread_mutex_lock(&mutexPile);
+    while(indPile >= NB_MAX_PILE)
+    {
+      pthread_mutex_unlock(&mutexPile);
+      nanosleep(&tPile, NULL);
+      pthread_mutex_lock(&mutexPile);
+    }
+
+    //insertion couleurBille dans tab
+    pthread_mutex_lock(&mutexTab);
+    tab[0][indPile + 12] = -billeCouleur;
+    pthread_mutex_unlock(&mutexTab);
+
+    //Dessine la bille case 12-13-14-15-16-17
+    DessineBille(0, indPile + 12, billeCouleur);
+
+    indPile++;
+
+    pthread_mutex_unlock(&mutexPile);
+
+    //la staue a déposée la bille on la redessine sans bille
+    DessineStatue(sID->position.L, sID->position.C, BAS, 0);
+
+    //notification d'une nouvelle bille dans la pille à Mage1
+    pthread_cond_signal(&condPile);
   }
 }
 
@@ -489,13 +437,14 @@ int deplacement(CASE destination,int delai)
 {
   CASE  * chemin;
   timespec waitTime;
+  int couleur = 0;
+  S_IDENTITE * sID = (S_IDENTITE *)malloc(sizeof(S_IDENTITE));
+
 	waitTime.tv_sec = 0;
   waitTime.tv_nsec = (delai - 0) * 1000000;
 
-  S_IDENTITE * sID = (S_IDENTITE *)malloc(sizeof(S_IDENTITE));
-  int couleur = 0;
 
-//récupération des données de la v specifique
+  //récupération des données de la v specifique
   sID = (S_IDENTITE *)pthread_getspecific(key);
 
   if(sID->bille == 0);
@@ -510,13 +459,33 @@ int deplacement(CASE destination,int delai)
     {
       //orientation de la statue
       if(sID->position.L < chemin->L)
-        DessineStatue(chemin->L, chemin->C, BAS, sID->bille);
+      {
+        if(sID->id == STATUE)
+          DessineStatue(chemin->L, chemin->C, BAS, sID->bille);
+        else
+          DessineMage(chemin->L, chemin->C, BAS, sID->bille);
+      }
       else if (sID->position.L > chemin->L)
-        DessineStatue(chemin->L, chemin->C, HAUT, sID->bille);
+      {
+        if(sID->id == STATUE)
+          DessineStatue(chemin->L, chemin->C, HAUT, sID->bille);
+        else
+          DessineMage(chemin->L, chemin->C, HAUT, sID->bille);
+      }
       else if (sID->position.C > chemin->C)
-        DessineStatue(chemin->L, chemin->C, GAUCHE, sID->bille);
+      {
+        if(sID->id == STATUE)
+          DessineStatue(chemin->L, chemin->C, GAUCHE, sID->bille);
+        else
+          DessineMage(chemin->L, chemin->C, GAUCHE, sID->bille);
+      }
       else
-        DessineStatue(chemin->L, chemin->C, DROITE, sID->bille);
+      {
+        if(sID->id == STATUE)
+          DessineStatue(chemin->L, chemin->C, DROITE, sID->bille);
+        else
+          DessineMage(chemin->L, chemin->C, DROITE, sID->bille);
+      }
 
       EffaceCarre(sID->position.L, sID->position.C);
       tab[sID->position.L][sID->position.C] = VIDE;
@@ -533,7 +502,6 @@ int deplacement(CASE destination,int delai)
 
   pthread_mutex_lock(&mutexTab);
   EffaceCarre(sID->position.L, sID->position.C);
-  DessineStatue(sID->position.L, sID->position.C, BAS, couleur);
   pthread_mutex_unlock(&mutexTab);
 
   //determine la  couleur de la bille du prochain évènement. Pas de couleur si pas de bille
@@ -541,6 +509,17 @@ int deplacement(CASE destination,int delai)
 
   //mise a jour de bille dans v specifique
   pthread_setspecific(key, (void*)sID);
-  return 0;
+
+  return couleur;
+
+}
+
+void * threadMage1(void * param)
+{
+
+}
+
+void * threadMage2(void * param)
+{
 
 }
