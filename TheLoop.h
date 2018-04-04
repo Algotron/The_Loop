@@ -58,6 +58,7 @@ int tab[NB_LIGNES][NB_COLONNES]
 #define BILLETMAX 1 //temps aléatoire max entre deux billes
 #define BILLETMIN 1 //temps aléatoire max entre deux billes
 #define STATUEMSEC 300 //milisec entre deux déplacements d'une statue
+#define MAGEMSEC 200 //milisec entre deux déplacements d'un mage
 
 //variables globales
 int nbBilles;

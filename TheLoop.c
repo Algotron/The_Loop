@@ -554,7 +554,16 @@ void * threadMage1(void * param)
     pthread_mutex_unlock(&mutexPile);
 
     //déplacement haut de la pile
-    couleur = deplacement(casePile, 300);
+    couleur = deplacement(casePile, MAGEMSEC);
+    pthread_mutex_lock(&mutexPile);
+    while (casePile.C != indPile + 11)
+    {
+      casePile.C++;
+      pthread_mutex_unlock(&mutexPile);
+      couleur = deplacement(casePile, MAGEMSEC);
+      pthread_mutex_lock(&mutexPile);
+    }
+
     sID = (S_IDENTITE *)pthread_getspecific(key);
     sID->bille = couleur;
     pthread_setspecific(key, (void*)sID);
@@ -564,17 +573,17 @@ void * threadMage1(void * param)
     tab[0][sID->position.C] = VIDE;
     pthread_mutex_unlock(&mutexTab);
 
-    pthread_mutex_lock(&mutexPile);
     indPile--;
-    pthread_mutex_unlock(&mutexPile);
 
     EffaceCarre(0, sID->position.C);
+
+    pthread_mutex_unlock(&mutexPile);
 
     //dessine mage avec la bille
     DessineMage(sID->position.L, sID->position.C, DROITE, couleur);
 
     //se deplace vers la case d'échange
-    deplacement(caseEchange, 300);
+    deplacement(caseEchange, MAGEMSEC);
 
     //échange
 
@@ -582,9 +591,9 @@ void * threadMage1(void * param)
     sID = (S_IDENTITE *)pthread_getspecific(key);
     sID->bille = 0;
     pthread_setspecific(key, (void*)sID);
-    
+
     //retourne vers sa case de départ
-    deplacement(caseMage1, 300);
+    deplacement(caseMage1, MAGEMSEC);
 
     //redessine le mage sans bille vers la DROITE
     DessineMage(caseMage1.L, caseMage1.C, DROITE, 0);
