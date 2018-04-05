@@ -24,11 +24,20 @@ int main(int argc,char* argv[])
 
   initGrille();
 
+  //masquage de SIGHUP
+  sigset_t mask;
+  sigemptyset(&mask);
+  sigaddset(&mask, SIGHUP);
+  sigprocmask(SIG_SETMASK, &mask, NULL);
+
   //création de la key variable specifique
   pthread_key_create(&key, NULL);
 
+  //prise des mutex echange
+  pthread_mutex_lock(&mutexEchangeL);
+  pthread_mutex_lock(&mutexEchangeE);
+
 	srand(time(NULL));
-	pthread_t poseur, expendable_t;
 	bool ok = false;
 	int col = 0;
 	CASE caseTab[4];
@@ -58,14 +67,17 @@ int main(int argc,char* argv[])
 
   /*Création du thread threadMage1*/
   DBG("création du thread threadMage1\n");
-  pthread_create(&expendable_t, NULL, threadMage1, NULL);
+  pthread_create(&Mage1, NULL, threadMage1, NULL);
+
+  /*Création du thread threadMage2*/
+  DBG("création du thread threadMage2\n");
+  pthread_create(&Mage2, NULL, threadMage2, NULL);
 
 	pthread_join(poseur, NULL);
 
 	DBG("GAME OVER\n");
 	setTitreGrilleSDL("GAME OVER");
 	pause();
-
 
   /*Fermeture de la grille de jeu (SDL)*/
   DBG("(THREAD MAIN %d) Fermeture de la fenetre graphique...\n",pthread_self());
@@ -535,8 +547,8 @@ void * threadMage1(void * param)
   DessineMage(caseMage1.L, caseMage1.C, DROITE, 0);
 
   // initilisation V specifique
-  sID->position.L = 1;
-  sID->position.C = 11;
+  sID->position.L = caseMage1.L;
+  sID->position.C = caseMage1.C;
   sID->id = MAGE;
   sID->bille = 0;
   pthread_setspecific(key, (void*)sID);
@@ -556,6 +568,8 @@ void * threadMage1(void * param)
     //déplacement haut de la pile
     couleur = deplacement(casePile, MAGEMSEC);
     pthread_mutex_lock(&mutexPile);
+
+    //vérification ajout bille pendant deplacement
     while (casePile.C != indPile + 11)
     {
       casePile.C++;
@@ -564,7 +578,10 @@ void * threadMage1(void * param)
       pthread_mutex_lock(&mutexPile);
     }
 
+    //recuperation de la position dans V specifique
     sID = (S_IDENTITE *)pthread_getspecific(key);
+
+    //modification de la couleur dans V specifique
     sID->bille = couleur;
     pthread_setspecific(key, (void*)sID);
 
@@ -574,7 +591,6 @@ void * threadMage1(void * param)
     pthread_mutex_unlock(&mutexTab);
 
     indPile--;
-
     EffaceCarre(0, sID->position.C);
 
     pthread_mutex_unlock(&mutexPile);
@@ -582,10 +598,24 @@ void * threadMage1(void * param)
     //dessine mage avec la bille
     DessineMage(sID->position.L, sID->position.C, DROITE, couleur);
 
+    //notification au Mage2
+    pthread_kill(Mage2, SIGHUP);
+
     //se deplace vers la case d'échange
     deplacement(caseEchange, MAGEMSEC);
+    DessineMage(caseEchange.L, caseEchange.C, DROITE, couleur);
 
-    //échange
+    //attente de Mage2
+    pthread_mutex_lock(&mutexEchangeE);
+
+    //Mage1 depose la bille
+    billeEchange = sID->bille;
+
+    //Mage1 sans bille
+    DessineMage(caseEchange.L, caseEchange.C, DROITE, 0);
+
+    //Mage2 peut prendre la bille
+    pthread_mutex_unlock(&mutexEchangeL);
 
     //retour sans bille
     sID = (S_IDENTITE *)pthread_getspecific(key);
@@ -597,10 +627,90 @@ void * threadMage1(void * param)
 
     //redessine le mage sans bille vers la DROITE
     DessineMage(caseMage1.L, caseMage1.C, DROITE, 0);
+
   }
 }
 
 void * threadMage2(void * param)
 {
+  S_IDENTITE * sID = (S_IDENTITE *)malloc(sizeof(S_IDENTITE));
+  CASE caseMage2, caseEchange2, caseFile;
+  int sig;
+
+  //creation du set de signaux pour sigwait
+  sigset_t set;
+  sigemptyset(&set);
+  sigaddset(&set, SIGHUP);
+
+  //initilisation cases données
+  caseMage2.L = 7;
+  caseMage2.C = 14;
+  caseEchange2.L = 5;
+  caseEchange2.C = 13;
+  caseFile.L = 7;
+
+  // initilisation V specifique
+  sID->position.L = caseMage2.L;
+  sID->position.C = caseMage2.C;
+  sID->id = MAGE;
+  sID->bille = 0;
+  pthread_setspecific(key, (void*)sID);
+
+  DessineMage(caseMage2.L, caseMage2.C, DROITE, 0);
+
+  while(1)
+  {
+    //attente de notification de Mage1
+    sigwait(&set, &sig);
+
+    //deplacement vers la case d'echange
+    deplacement(caseEchange2, MAGEMSEC);
+    DessineMage(caseEchange2.L, caseEchange2.C, GAUCHE, 0);
+
+    //récuperation de la position
+    sID = (S_IDENTITE *)pthread_getspecific(key);
+
+    //débloque le mutex pour Mage1
+    pthread_mutex_unlock(&mutexEchangeE);
+
+    //attente de Mage1
+    pthread_mutex_lock(&mutexEchangeL);
+
+    //Mage2 récupère la bille
+     sID->bille = billeEchange;
+
+    //Mage2 avec bille
+    DessineMage(caseEchange2.L, caseEchange2.C, GAUCHE, sID->bille);
+
+    //modifie la bille dans V specifique
+    pthread_setspecific(key, (void*)sID);
+
+    //deplacement vers la bonne fille
+    if(sID->bille == JAUNE)
+      caseFile.C = 15;
+    else if(sID->bille == ROUGE)
+      caseFile.C = 16;
+    else if(sID->bille == VERT)
+      caseFile.C = 17;
+    else
+      caseFile.C = 18;
+
+    deplacement(caseFile, MAGEMSEC);
+
+    //lancement de la bille dans sa File
+
+
+    //retour sans bille
+    sID = (S_IDENTITE *)pthread_getspecific(key);
+    sID->bille = 0;
+    pthread_setspecific(key, (void*)sID);
+
+    //retourne a sa case
+    deplacement(caseMage2, MAGEMSEC);
+
+    DessineMage(caseMage2.L, caseMage2.C, DROITE, 0);
+
+  }
+
 
 }

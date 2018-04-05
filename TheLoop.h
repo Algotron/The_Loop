@@ -69,13 +69,21 @@ int indRequetesL  = 0;
 int nbRequetesNonTraites = 0;
 int videTab[] = {VIDE};
 int indPile = 0;
+int billeEchange;
+
+//clef de la v specifique
 pthread_key_t key;
+
+//tid des threads
+pthread_t poseur,Mage1, Mage2, expendable_t;
 
 //déclaration & initilisation des mutex
 pthread_mutex_t mutexNbBilles = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutexTab = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutexRequetes = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutexPile = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutexEchangeL = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutexEchangeE = PTHREAD_MUTEX_INITIALIZER;
 
 //Déclaration & initilisation des variables de conditions
 pthread_cond_t condRequetes = PTHREAD_COND_INITIALIZER;
