@@ -42,6 +42,10 @@ typedef struct {
 //nobre maximum de billes empiles
 #define NB_MAX_PILE 6
 
+//emplacement de tete PISTON
+#define lPiston 13
+#define cPiston 19
+
 int tab[NB_LIGNES][NB_COLONNES]={
    {0,1,1,0,1,1,0,1,1,0,1,1,0,0,0,0,0,0,1,1},
    {0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0},
@@ -112,7 +116,6 @@ void * threadMage1(void *);
 void * threadMage2(void *);
 void * threadBilleQuiRoule(void *);
 void * threadPiston(void *);
-
 
 //prototypes de fonctions
 void initGrille();

@@ -73,6 +73,10 @@ int main(int argc,char* argv[])
   DBG("création du thread threadMage2\n");
   pthread_create(&Mage2, NULL, threadMage2, NULL);
 
+  /*Création du thread threadPiston*/
+  DBG("création du thread threadPiston\n");
+  pthread_create(&expendable_t, NULL, threadPiston, NULL);
+
 	pthread_join(poseur, NULL);
 
 	DBG("GAME OVER\n");
@@ -147,12 +151,13 @@ void * threadPoseurBilles(void* param)
 	//nombre de billes au départ
 	nbBilles = NBILLESMAX;
 
+	pthread_mutex_lock(&mutexNbBilles);
+
 	//dessine les dizaines puis unités de nbBilles
 	DessineChiffre(11,12,nbBilles / 10);
 	DessineChiffre(11,13,nbBilles % 10);
 	DessineBille(11, 11, ROUGE);
 
-	pthread_mutex_lock(&mutexNbBilles);
 
 	while(nbBilles > 0)
 	{
@@ -780,5 +785,148 @@ void * threadBilleQuiRoule(void * param)
 
 void * threadPiston(void * param)
 {
+  CASE caseTete, caseBille;
+  int cBille, i, j, couleur, compteur = 11;
+  timespec waitTemp;
+
+  waitTemp.tv_nsec = 600000000;
+  waitTemp.tv_sec = 0;
+
+  while (1)
+  {
+    caseTete.L = lPiston;
+    caseTete.C = cPiston;
+
+    DessinePiston(caseTete.L,caseTete.C, TETE);
+    //attente d'une notification et qu'une des fille soit pleine
+    pthread_mutex_lock(&mutexFile);
+    while (nbFileJaune < 4 && nbFileRouge < 4 && nbFileVert < 4 && nbFileViolet < 4)
+      pthread_cond_wait(&condFile,&mutexFile);
+
+    DBG("threadPiston Debloqué\n");
+		//détermine la couleur de la bille et sa colonne
+    if (nbFileJaune >= 4)
+    {
+      cBille = 15;
+      couleur = JAUNE;
+    }
+    else if (nbFileRouge >= 4)
+    {
+      cBille = 16;
+      couleur = ROUGE;
+    }
+    else if (nbFileVert >= 4)
+    {
+      cBille = 17;
+      couleur = VERT;
+    }
+    else
+    {
+      cBille = 18;
+      couleur = VIOLET;
+    }
+
+    pthread_mutex_unlock(&mutexFile);
+
+    i = 0;
+		//déplacement du pistion jusqu'a la case avant la file
+    while (caseTete.C -1 != cBille)
+    {
+      caseTete.C--;
+      DessinePiston(caseTete.L,caseTete.C, TETE);
+      EffaceCarre(caseTete.L, caseTete.C + 1);
+      pthread_mutex_lock(&mutexTab);
+      tab[caseTete.L][caseTete.C] = PISTON;
+      pthread_mutex_unlock(&mutexTab);
+
+			//dessine les tiges / i
+      for (j = 1; j <= i +1; j++)
+      {
+        EffaceCarre(caseTete.L, caseTete.C + j);
+        DessinePiston(caseTete.L, caseTete.C + j, TIGE);
+        pthread_mutex_lock(&mutexTab);
+        tab[caseTete.L][caseTete.C + j] = PISTON;
+        pthread_mutex_unlock(&mutexTab);
+      }
+      i++;
+      nanosleep(&waitTemp,NULL);
+    }
+
+		i = 12; //case la plus basse de la file
+		//on decale la file
+		pthread_mutex_lock(&mutexTab);
+    while(tab[i][cBille] != 0 && tab[i -1][cBille] != Mage2)
+    {
+			EffaceCarre(i, cBille);
+			DessineBille(i + 1, cBille, couleur);
+			tab[i][cBille] = VIDE;
+			tab[i + 1][cBille] = -couleur;
+			pthread_mutex_unlock(&mutexTab);
+			i--;
+			nanosleep(&waitTemp,NULL);
+    }
+
+		//decrementation du bon compteur
+    pthread_mutex_lock(&mutexFile);
+    if (couleur == JAUNE)
+      nbFileJaune--;
+    else if (couleur == ROUGE)
+      nbFileRouge--;
+    else if (couleur == VERT)
+      nbFileVert--;
+    else
+      nbFileViolet--;
+    pthread_mutex_unlock(&mutexFile);
+
+    i = 0;
+		//avance jusqu'au mur
+    while (caseTete.C -1 != 11)
+    {
+      caseTete.C--;
+			EffaceCarre(caseTete.L,caseTete.C);
+			DessineBille(caseTete.L,caseTete.C -1, couleur);
+      DessinePiston(caseTete.L,caseTete.C, TETE);
+      EffaceCarre(caseTete.L, caseTete.C + 1);
+      pthread_mutex_lock(&mutexTab);
+      tab[caseTete.L][caseTete.C] = PISTON;
+      pthread_mutex_unlock(&mutexTab);
+
+      for (j = 1; j <= i + 1; j++)
+      {
+        EffaceCarre(caseTete.L, caseTete.C + j);
+        DessinePiston(caseTete.L, caseTete.C + j, TIGE);
+        pthread_mutex_lock(&mutexTab);
+        tab[caseTete.L][caseTete.C + j] = PISTON;
+        pthread_mutex_unlock(&mutexTab);
+      }
+      i++;
+      nanosleep(&waitTemp,NULL);
+    }
+
+		DessineBille(lPiston,11,GRIS);
+
+		pthread_mutex_lock(&mutexNbBilles);
+		nbBilles++;
+		//dessine les dizaines puis unités de nbBilles
+		DessineChiffre(11,12,nbBilles / 10);
+		DessineChiffre(11,13,nbBilles % 10);
+		pthread_mutex_unlock(&mutexNbBilles);
+
+
+		while(caseTete.C != cPiston)
+		{
+			EffaceCarre(caseTete.L, caseTete.C);
+			EffaceCarre(caseTete.L, caseTete.C + 1);
+			DessinePiston(caseTete.L, caseTete.C + 1, TETE);
+			caseTete.C++;
+
+			pthread_mutex_lock(&mutexTab);
+			tab[caseTete.L][caseTete.C] = VIDE;
+			pthread_mutex_unlock(&mutexTab);
+
+			nanosleep(&waitTemp,NULL);
+		}
+  }
+
 
 }
