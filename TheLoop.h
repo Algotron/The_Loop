@@ -3,10 +3,15 @@
 
 //structure variable specifique
 typedef struct {
-  int id ;
-  CASE position ;
-  int bille ;
-} S_IDENTITE ;
+  int id;
+  CASE position;
+  int bille;
+} S_IDENTITE;
+
+typedef struct {
+  int couleur;
+  CASE lance;
+}ARGS;
 
 //debug macro
 #ifdef DEBUG
@@ -37,8 +42,8 @@ typedef struct {
 //nobre maximum de billes empiles
 #define NB_MAX_PILE 6
 
-int tab[NB_LIGNES][NB_COLONNES]
-={ {0,1,1,0,1,1,0,1,1,0,1,1,0,0,0,0,0,0,1,1},
+int tab[NB_LIGNES][NB_COLONNES]={
+   {0,1,1,0,1,1,0,1,1,0,1,1,0,0,0,0,0,0,1,1},
    {0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0},
    {1,1,0,1,0,0,1,0,1,1,1,1,1,1,1,1,1,1,1,0},
    {0,0,0,1,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0},
@@ -71,6 +76,12 @@ int videTab[] = {VIDE};
 int indPile = 0;
 int billeEchange;
 
+//nombre de bille dans chaque file
+int nbFileJaune = 0;
+int nbFileRouge = 0;
+int nbFileVert = 0;
+int nbFileViolet = 0;
+
 //clef de la v specifique
 pthread_key_t key;
 
@@ -84,10 +95,13 @@ pthread_mutex_t mutexRequetes = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutexPile = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutexEchangeL = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutexEchangeE = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutexFile = PTHREAD_MUTEX_INITIALIZER;
+
 
 //Déclaration & initilisation des variables de conditions
 pthread_cond_t condRequetes = PTHREAD_COND_INITIALIZER;
 pthread_cond_t condPile = PTHREAD_COND_INITIALIZER;
+pthread_cond_t condFile = PTHREAD_COND_INITIALIZER;
 
 //prototypes threads
 void * threadPoseurBilles(void*);
@@ -96,6 +110,9 @@ void * threadEvent(void *);
 void * threadStatues(void *);
 void * threadMage1(void *);
 void * threadMage2(void *);
+void * threadBilleQuiRoule(void *);
+void * threadPiston(void *);
+
 
 //prototypes de fonctions
 void initGrille();

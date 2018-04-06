@@ -403,6 +403,7 @@ void * threadStatues(void * param)
 
     //deplacement vers la bille
     sID->bille = deplacement(caseArrive,STATUEMSEC);
+    DessineStatue(sID->position.L,sID->position.C, BAS,sID->bille );
 
     //on donne la couleurs de la bille qui remonte
     pthread_setspecific(key, (void*)sID);
@@ -416,7 +417,6 @@ void * threadStatues(void * param)
     deplacement(*caseStatue,STATUEMSEC);
 
     //dessine la statue en attente avec la bille en main
-    sID = (S_IDENTITE *)pthread_getspecific(key);
     DessineStatue(sID->position.L, sID->position.C, BAS, sID->bille);
 
     //attente d'une place dans la pile
@@ -466,14 +466,17 @@ int deplacement(CASE destination,int delai)
   //récupération des données de la v specifique
   sID = (S_IDENTITE *)pthread_getspecific(key);
 
+  //si Mage couleur [0][C] dans pile
   if(sID->id == STATUE)
     couleur = -tab[destination.L][destination.C];
   else
     couleur = -tab[0][destination.C];
 
+  // tant que la position est differente de la destination
   while(sID->position.L != destination.L || sID->position.C != destination.C)
   {
     pthread_mutex_lock(&mutexTab);
+    //recherche du prochain déplacement
     RechercheChemin(&tab[0][0], NB_LIGNES, NB_COLONNES, videTab, 1, sID->position, destination, &chemin);
 
     if (chemin)
@@ -578,9 +581,6 @@ void * threadMage1(void * param)
       pthread_mutex_lock(&mutexPile);
     }
 
-    //recuperation de la position dans V specifique
-    sID = (S_IDENTITE *)pthread_getspecific(key);
-
     //modification de la couleur dans V specifique
     sID->bille = couleur;
     pthread_setspecific(key, (void*)sID);
@@ -618,7 +618,6 @@ void * threadMage1(void * param)
     pthread_mutex_unlock(&mutexEchangeL);
 
     //retour sans bille
-    sID = (S_IDENTITE *)pthread_getspecific(key);
     sID->bille = 0;
     pthread_setspecific(key, (void*)sID);
 
@@ -635,10 +634,13 @@ void * threadMage2(void * param)
 {
   S_IDENTITE * sID = (S_IDENTITE *)malloc(sizeof(S_IDENTITE));
   CASE caseMage2, caseEchange2, caseFile;
+  timespec waitTemp;
   int sig;
+  int * pFile;
+  sigset_t set;
+  ARGS args;
 
   //creation du set de signaux pour sigwait
-  sigset_t set;
   sigemptyset(&set);
   sigaddset(&set, SIGHUP);
 
@@ -656,6 +658,9 @@ void * threadMage2(void * param)
   sID->bille = 0;
   pthread_setspecific(key, (void*)sID);
 
+  waitTemp.tv_nsec = 300000000;
+  waitTemp.tv_sec = 0;
+
   DessineMage(caseMage2.L, caseMage2.C, DROITE, 0);
 
   while(1)
@@ -666,9 +671,6 @@ void * threadMage2(void * param)
     //deplacement vers la case d'echange
     deplacement(caseEchange2, MAGEMSEC);
     DessineMage(caseEchange2.L, caseEchange2.C, GAUCHE, 0);
-
-    //récuperation de la position
-    sID = (S_IDENTITE *)pthread_getspecific(key);
 
     //débloque le mutex pour Mage1
     pthread_mutex_unlock(&mutexEchangeE);
@@ -696,12 +698,28 @@ void * threadMage2(void * param)
       caseFile.C = 18;
 
     deplacement(caseFile, MAGEMSEC);
+    DessineMage(caseFile.L, caseFile.C, BAS, sID->bille);
 
-    //lancement de la bille dans sa File
+    //attente de place dans la file
+    pthread_mutex_lock(&mutexTab);
+    while (tab[caseFile.L + 1][caseFile.C] != 0)
+    {
+      pthread_mutex_unlock(&mutexTab);
+      nanosleep(&waitTemp, NULL);
+      pthread_mutex_lock(&mutexTab);
+    }
+    pthread_mutex_unlock(&mutexTab);
 
+    //initilisation des arguments Pour threadBilleQuiRoule
+    args.couleur = sID->bille;
+    args.lance.L = caseFile.L + 1;
+    args.lance.C = caseFile.C;
+
+    /*Création du thread threadBilleQuiRoule*/
+    DBG("création du thread threadBilleQuiRoule\n");
+    pthread_create(&expendable_t, NULL, threadBilleQuiRoule, &args);
 
     //retour sans bille
-    sID = (S_IDENTITE *)pthread_getspecific(key);
     sID->bille = 0;
     pthread_setspecific(key, (void*)sID);
 
@@ -711,6 +729,56 @@ void * threadMage2(void * param)
     DessineMage(caseMage2.L, caseMage2.C, DROITE, 0);
 
   }
+}
 
+void * threadBilleQuiRoule(void * param)
+{
+  ARGS * args = (ARGS *)param;
+  timespec waitTemp;
+
+  waitTemp.tv_nsec = 300000000;
+  waitTemp.tv_sec = 0;
+
+  pthread_mutex_lock(&mutexFile);
+  if (args->couleur == JAUNE)
+    nbFileJaune++;
+  else if(args->couleur == ROUGE)
+    nbFileRouge++;
+  else if(args->couleur == VERT)
+    nbFileVert++;
+  else
+    nbFileViolet++;
+
+  pthread_mutex_unlock(&mutexFile);
+
+  //tant qu'il n'y a pas de bille dans la case suivante et que ligne < 13
+  pthread_mutex_lock(&mutexTab);
+  while(tab[args->lance.L][args->lance.C] == 0 && args->lance.L <= 12)
+  {
+    tab[args->lance.L][args->lance.C] = -args->couleur;
+
+    //supression du mouvement precedent
+    if (args->lance.L > 8)
+    {
+      tab[args->lance.L -1][args->lance.C] = VIDE;
+      EffaceCarre(args->lance.L -1, args->lance.C);
+    }
+    pthread_mutex_unlock(&mutexTab);
+    DessineBille(args->lance.L, args->lance.C, args->couleur);
+
+    nanosleep(&waitTemp, NULL);
+
+    //incrementation de la ligne
+    args->lance.L++;
+    pthread_mutex_lock(&mutexTab);
+  }
+  pthread_mutex_unlock(&mutexTab);
+
+  pthread_cond_signal(&condFile);
+
+}
+
+void * threadPiston(void * param)
+{
 
 }
