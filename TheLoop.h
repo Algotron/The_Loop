@@ -79,6 +79,7 @@ int nbRequetesNonTraites = 0;
 int videTab[] = {VIDE};
 int indPile = 0;
 int billeEchange;
+unsigned int tAlarm = 5;
 
 //nombre de bille dans chaque file
 int nbFileJaune = 0;
@@ -91,6 +92,7 @@ pthread_key_t key;
 
 //tid des threads
 pthread_t poseur,Mage1, Mage2, expendable_t;
+pthread_t statue[4];
 
 //déclaration & initilisation des mutex
 pthread_mutex_t mutexNbBilles = PTHREAD_MUTEX_INITIALIZER;
@@ -122,5 +124,9 @@ void initGrille();
 bool CaseReservee(CASE Case);
 int deplacement(CASE destination,int delai);
 
+//prototype handler
+void Alrm_Usr1(int);
 
+
+#define STATUEMAGE tab[event.ligne][event.colonne] == statue[0] || tab[event.ligne][event.colonne] == statue[1] ||tab[event.ligne][event.colonne] == statue[2] ||tab[event.ligne][event.colonne] == statue[3] || tab[event.ligne][event.colonne] == Mage1 || tab[event.ligne][event.colonne] == Mage2
 #endif

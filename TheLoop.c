@@ -11,6 +11,7 @@
 
 int main(int argc,char* argv[])
 {
+	sigset_t mask;
   srand((unsigned)time(NULL));
 
   // Ouverture de la fenetre graphique
@@ -24,10 +25,16 @@ int main(int argc,char* argv[])
 
   initGrille();
 
-  //masquage de SIGHUP
-  sigset_t mask;
+	//Redirection des signaux SIGUSR1 & SIGALRM
+  struct sigaction sigAct;
+  sigAct.sa_handler = Alrm_Usr1;
+	sigaction(SIGALRM, &sigAct, NULL);
+  sigaction(SIGUSR1, &sigAct, NULL);
+
+  //masquage de SIGHUP & SIGALRM
   sigemptyset(&mask);
   sigaddset(&mask, SIGHUP);
+	sigaddset(&mask, SIGALRM);
   sigprocmask(SIG_SETMASK, &mask, NULL);
 
   //création de la key variable specifique
@@ -37,7 +44,6 @@ int main(int argc,char* argv[])
   pthread_mutex_lock(&mutexEchangeL);
   pthread_mutex_lock(&mutexEchangeE);
 
-	srand(time(NULL));
 	bool ok = false;
 	int col = 0;
 	CASE caseTab[4];
@@ -51,31 +57,33 @@ int main(int argc,char* argv[])
 	}
 
 	/*création du thread threadPoseurBilles*/
-	DBG("création du thread threadPoseurBilles\n");
 	pthread_create(&poseur, NULL, threadPoseurBilles, NULL);
+	DBG("création du thread threadPoseurBilles %d\n", poseur);
 
 	/*création du thread threadEvent*/
-	DBG("création du thread threadEvent\n");
 	pthread_create(&expendable_t, NULL, threadEvent, NULL);
+	DBG("création du thread threadEvent %d\n", expendable_t);
 
 	/*création des 4 threads threadStatues*/
 	for(int i = 0; i < 4; i++)
 	{
-		DBG("création du thread threadStatues[%d]\n"), i + 1;
-		pthread_create(&expendable_t, NULL, threadStatues, &caseTab[i]);
+		pthread_create(&statue[i], NULL, threadStatues, &caseTab[i]);
+		DBG("création du thread threadStatues[%d] %d\n", i + 1, statue[i]);
 	}
 
   /*Création du thread threadMage1*/
-  DBG("création du thread threadMage1\n");
   pthread_create(&Mage1, NULL, threadMage1, NULL);
+	DBG("création du thread threadMage1 %d\n", Mage1);
 
   /*Création du thread threadMage2*/
-  DBG("création du thread threadMage2\n");
   pthread_create(&Mage2, NULL, threadMage2, NULL);
+	DBG("création du thread threadMage2 %d\n", Mage2);
 
   /*Création du thread threadPiston*/
-  DBG("création du thread threadPiston\n");
   pthread_create(&expendable_t, NULL, threadPiston, NULL);
+	DBG("création du thread threadPiston %d\n", expendable_t);
+
+	alarm(tAlarm);
 
 	pthread_join(poseur, NULL);
 
@@ -147,6 +155,13 @@ void * threadPoseurBilles(void* param)
 	sleepTime.tv_nsec = 0;
 	int billeColor, stop, blocked = 0, cmptColor = 0;
 	pthread_t billeTid;
+	sigset_t mask;
+
+	//masquage de SIGHUP & SIGALRM
+	sigemptyset(&mask);
+	sigaddset(&mask, SIGHUP);
+	sigaddset(&mask, SIGALRM);
+	sigprocmask(SIG_SETMASK, &mask, NULL);
 
 	//nombre de billes au départ
 	nbBilles = NBILLESMAX;
@@ -238,6 +253,13 @@ void * threadBille(void * param)
 	int * couleur = (int *)param;
 	attenteBille.tv_nsec = 0;
 	attenteBille.tv_sec = 3;
+	sigset_t mask;
+
+	//masquage de SIGHUP & SIGALRM
+	sigemptyset(&mask);
+	sigaddset(&mask, SIGHUP);
+	sigaddset(&mask, SIGALRM);
+	sigprocmask(SIG_SETMASK, &mask, NULL);
 
 	pthread_mutex_lock(&mutexTab);
 
@@ -287,6 +309,14 @@ void * threadBille(void * param)
 
 void * threadEvent(void * param)
 {
+	sigset_t mask;
+
+	//masquage de SIGHUP & SIGALRM
+	sigemptyset(&mask);
+	sigaddset(&mask, SIGHUP);
+	sigaddset(&mask, SIGALRM);
+	sigprocmask(SIG_SETMASK, &mask, NULL);
+
 	EVENT_GRILLE_SDL event;
 	while(1)
 	{
@@ -295,6 +325,7 @@ void * threadEvent(void * param)
 		switch(event.type)
 		{
 			case CROIX :
+			DBG("Event CROIX\n");
 					FermetureFenetreGraphique();
 					exit(0);
 				break;
@@ -341,6 +372,12 @@ void * threadEvent(void * param)
 								DBG("catpture impssible\n");
 							}
 						}
+						else if(STATUEMAGE)
+						{
+							pthread_kill(tab[event.ligne][event.colonne], SIGUSR1);
+							DBG("signal envoyé a %d", tab[event.ligne][event.colonne]);
+						}
+
 						pthread_mutex_unlock(&mutexTab);
 				break;
 
@@ -365,6 +402,12 @@ void * threadStatues(void * param)
 	caseCourante.C = caseStatue->C;
   S_IDENTITE * sID = (S_IDENTITE *)malloc(sizeof(S_IDENTITE));
   timespec tPile;
+	sigset_t mask;
+
+	//masquage de SIGHUP
+	sigemptyset(&mask);
+	sigaddset(&mask, SIGHUP);
+	sigprocmask(SIG_SETMASK, &mask, NULL);
 
   tPile.tv_nsec = 0;
   tPile.tv_sec = 1;
@@ -545,6 +588,12 @@ void * threadMage1(void * param)
   S_IDENTITE * sID = (S_IDENTITE *)malloc(sizeof(S_IDENTITE));
   CASE caseMage1, caseEchange, casePile;
   int couleur;
+	sigset_t mask;
+
+	//masquage de SIGHUP
+	sigemptyset(&mask);
+	sigaddset(&mask, SIGHUP);
+	sigprocmask(SIG_SETMASK, &mask, NULL);
 
   //initilisation cases données
   caseMage1.L = 1;
@@ -553,6 +602,10 @@ void * threadMage1(void * param)
   caseEchange.C = 12;
 
   DessineMage(caseMage1.L, caseMage1.C, DROITE, 0);
+	pthread_mutex_lock(&mutexTab);
+	tab[caseMage1.L][caseMage1.C] = pthread_self();
+	pthread_mutex_unlock(&mutexTab);
+
 
   // initilisation V specifique
   sID->position.L = caseMage1.L;
@@ -643,7 +696,13 @@ void * threadMage2(void * param)
   int sig;
   int * pFile;
   sigset_t set;
+	sigset_t mask;
   ARGS args;
+
+	//masquage de SIGHUP
+	sigemptyset(&mask);
+	sigaddset(&mask, SIGHUP);
+	sigprocmask(SIG_SETMASK, &mask, NULL);
 
   //creation du set de signaux pour sigwait
   sigemptyset(&set);
@@ -667,6 +726,9 @@ void * threadMage2(void * param)
   waitTemp.tv_sec = 0;
 
   DessineMage(caseMage2.L, caseMage2.C, DROITE, 0);
+	pthread_mutex_lock(&mutexTab);
+	tab[caseMage2.L][caseMage2.C] = pthread_self();
+	pthread_mutex_unlock(&mutexTab);
 
   while(1)
   {
@@ -721,8 +783,8 @@ void * threadMage2(void * param)
     args.lance.C = caseFile.C;
 
     /*Création du thread threadBilleQuiRoule*/
-    DBG("création du thread threadBilleQuiRoule\n");
     pthread_create(&expendable_t, NULL, threadBilleQuiRoule, &args);
+		DBG("création du thread threadBilleQuiRoule %d\n", expendable_t);
 
     //retour sans bille
     sID->bille = 0;
@@ -740,6 +802,13 @@ void * threadBilleQuiRoule(void * param)
 {
   ARGS * args = (ARGS *)param;
   timespec waitTemp;
+	sigset_t mask;
+
+	//masquage de SIGHUP & SIGALRM
+	sigemptyset(&mask);
+	sigaddset(&mask, SIGHUP);
+	sigaddset(&mask, SIGALRM);
+	sigprocmask(SIG_SETMASK, &mask, NULL);
 
   waitTemp.tv_nsec = 300000000;
   waitTemp.tv_sec = 0;
@@ -788,6 +857,13 @@ void * threadPiston(void * param)
   CASE caseTete, caseBille;
   int cBille, i, j, couleur, compteur = 11;
   timespec waitTemp;
+	sigset_t mask;
+
+	//masquage de SIGHUP & SIGALRM
+	sigemptyset(&mask);
+	sigaddset(&mask, SIGHUP);
+	sigaddset(&mask, SIGALRM);
+	sigprocmask(SIG_SETMASK, &mask, NULL);
 
   waitTemp.tv_nsec = 600000000;
   waitTemp.tv_sec = 0;
@@ -927,6 +1003,65 @@ void * threadPiston(void * param)
 			nanosleep(&waitTemp,NULL);
 		}
   }
+}
+
+void Alrm_Usr1(int sig)
+{
+	timespec prisonTime;
+	int couleurPrison;
+	S_IDENTITE * sID = (S_IDENTITE *)malloc(sizeof(S_IDENTITE));
+
+	sID = (S_IDENTITE *)pthread_getspecific(key);
+
+	//pid negatif dans tab pour ne plus pouvoir cliquer
+	tab[sID->position.L][sID->position.C] = -tab[sID->position.L][sID->position.C];
+
+	prisonTime.tv_nsec = 0;
+
+	//SIGUSR1
+	if(sig == SIGUSR1)
+	{
+		DBG("SIGUSR1 recu par %d\n", pthread_self());
+		prisonTime.tv_sec = 10;
+		couleurPrison = JAUNE;
+	}
+	else//SIGALRM
+	{
+		DBG("SIGALRM recu par %d\n", pthread_self());
+		prisonTime.tv_sec = 5;
+		couleurPrison = VERT;
+	}
+
+	//MAGE
+	if (sID->id == MAGE)
+		DessineMage(sID->position.L, sID->position.C, BAS, 0);
+	else//STATUE
+		DessineStatue(sID->position.L, sID->position.C, BAS, 0);
+
+		//dessine la prison de la bonne couleur
+		DessinePrison(sID->position.L, sID->position.C, couleurPrison);
+
+		//attente de la fin de la peine
+		nanosleep(&prisonTime, NULL);
+
+		//efface la STATUE/MAge et la prison
+		EffaceCarre(sID->position.L, sID->position.C);
+
+		// redessine MAGE
+		if (sID->id == MAGE)
+			DessineMage(sID->position.L, sID->position.C, BAS, 0);
+		else//redessine STATUE
+			DessineStatue(sID->position.L, sID->position.C, BAS, 0);
+
+		//remise du PID correct dans tab
+		tab[sID->position.L][sID->position.C] = -tab[sID->position.L][sID->position.C];
+
+		//tirage du prochain SIGALRM
+		if (sig = SIGALRM)
+		{
+			tAlarm = (rand() % (15 - 5 + 1) + 5);
+			alarm(tAlarm);
+		}
 
 
 }
