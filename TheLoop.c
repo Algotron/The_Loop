@@ -414,7 +414,7 @@ void * threadStatues(void * param)
 	caseCourante.L = caseStatue->L;
 	caseCourante.C = caseStatue->C;
   S_IDENTITE * sID = (S_IDENTITE *)malloc(sizeof(S_IDENTITE));
-  timespec tPile;
+  timespec tPile, tDecrementation;
 	sigset_t mask;
 
 	//masquage de SIGHUP
@@ -437,9 +437,13 @@ void * threadStatues(void * param)
 
 	while(1)
 	{
-		// initilisation de la tempo
+		// initilisation de la tempo place pile
 		tPile.tv_sec = attentePFile / 1000;
 		tPile.tv_nsec = (attentePFile % 1000) * 1000000;
+
+		//initilisation de la tempo decrementation nbRequetesNonTraites
+		tDecrementation.tv_sec = decrementation / 1000;
+		tDecrementation.tv_nsec = (decrementation % 1000) * 1000000;
 
     //(ré)initilisation bille V specifique
     sID->bille = 0;
@@ -469,6 +473,8 @@ void * threadStatues(void * param)
 
     //on donne la couleurs de la bille qui remonte
     pthread_setspecific(key, (void*)sID);
+
+		nanosleep();
 
     //décrémentation du nombre de requete non traitées
     pthread_mutex_lock(&mutexRequetes);
@@ -872,7 +878,7 @@ void * threadPiston(void * param)
 {
   CASE caseTete, caseBille;
   int cBille, i, j, couleur, compteur = 11;
-  timespec waitTemp;
+  timespec waitTemp,effacebille;
 	sigset_t mask;
 
 	//masquage de SIGHUP & SIGALRM
@@ -886,7 +892,11 @@ void * threadPiston(void * param)
 
 		// initilisation de la tempo
 		waitTemp.tv_sec = enfile / 1000;
-		waitTemp.tv_nsec = (enfile % 1000) * 1000000;
+		waitTemp.tv_nsec = (enfile % 1000) * 1000000
+
+		// initilisation de la tempo
+		effacebille.tv_sec = tEfface / 1000;
+		effacebille.tv_nsec = (tEfface % 1000) * 1000000;
 
     caseTete.L = lPiston;
     caseTete.C = cPiston;
@@ -994,7 +1004,7 @@ void * threadPiston(void * param)
         pthread_mutex_unlock(&mutexTab);
       }
       i++;
-      nanosleep(&waitTemp,NULL);
+      nanosleep(&effacebille,NULL);
     }
 
 		DessineBille(lPiston,11,GRIS);
@@ -1130,6 +1140,8 @@ void * threadChrono(void *)
 			clicBille *= 0.9;
 			attentePFile *= 0.9;
 			enfile *= 0.9;
+			decrementation *= 0.9;
+			tEfface *= 0.9;
 		}
 	}
 
