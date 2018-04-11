@@ -19,7 +19,7 @@ NOEUD*  estPresent(NOEUD* pTete,int L,int C);
 char    valeurAutorisee(int valeur,int *valeursAutorisees,int nbValeursAutorisees);
 
 ///// Definition des fonctions ////////////////////////////////////////////////////////////////////
-int RechercheChemin(int* tab,int nbLignes,int nbColonnes,int *valeursAutorisees,int nbValeursAutorisees,CASE depart,CASE arrivee,CASE **pChemin)
+int RechercheChemin(pthread_t * tab,int nbLignes,int nbColonnes,int *valeursAutorisees,int nbValeursAutorisees,CASE depart,CASE arrivee,CASE **pChemin)
 {
   char fini=0,trouve=0;
   int backup,i,L,C,newWG,nbCases;
@@ -71,7 +71,7 @@ int RechercheChemin(int* tab,int nbLignes,int nbColonnes,int *valeursAutorisees,
   {
     // On retire le noeud qui a le wF minimum de la liste ouverte
     courant = RecupereFmin(&pListeOuverte);
-    if (courant == NULL) 
+    if (courant == NULL)
     {
       fini = 1;
       trouve = 0;
@@ -91,10 +91,10 @@ int RechercheChemin(int* tab,int nbLignes,int nbColonnes,int *valeursAutorisees,
     for (L=(courant->L-1) ; L<=(courant->L+1) ; L++)
       for (C=(courant->C-1) ; C<=(courant->C+1) ; C++)
       {
-        if ((L==(courant->L-1)) && (C==(courant->C-1))) continue; 
-        if ((L==(courant->L+1)) && (C==(courant->C+1))) continue; 
-        if ((L==(courant->L-1)) && (C==(courant->C+1))) continue; 
-        if ((L==(courant->L+1)) && (C==(courant->C-1))) continue; 
+        if ((L==(courant->L-1)) && (C==(courant->C-1))) continue;
+        if ((L==(courant->L+1)) && (C==(courant->C+1))) continue;
+        if ((L==(courant->L-1)) && (C==(courant->C+1))) continue;
+        if ((L==(courant->L+1)) && (C==(courant->C-1))) continue;
         if ((L==(courant->L)) && (C==(courant->C))) continue;                   // noeud courant
         if ((L<0) || (L>=nbLignes) || (C<0) || (C>=nbColonnes)) continue;       // hors tableau
         if (!valeurAutorisee(*(tab+L*nbColonnes+C),valeursAutorisees,nbValeursAutorisees)) continue; // obstacle
@@ -130,7 +130,7 @@ int RechercheChemin(int* tab,int nbLignes,int nbColonnes,int *valeursAutorisees,
           temp->suivant = NULL;
           insereListe(&pListeOuverte,temp);
         }
-      }    
+      }
   }
 
   if (trouve)
@@ -154,7 +154,7 @@ int RechercheChemin(int* tab,int nbLignes,int nbColonnes,int *valeursAutorisees,
       i++;
       p = p->parent;
     }
-        
+
     // Allocation et remplissage du chemin solution
     *pChemin = (CASE*)malloc(nbCases*sizeof(CASE));
     for(i=0 ; i<nbCases ; i++)
@@ -168,7 +168,7 @@ int RechercheChemin(int* tab,int nbLignes,int nbColonnes,int *valeursAutorisees,
   {
     nbCases = -1;
     *pChemin = NULL;
-  }   
+  }
 
   // Liberation memoire
   while (pListeOuverte != NULL)
@@ -187,7 +187,7 @@ int RechercheChemin(int* tab,int nbLignes,int nbColonnes,int *valeursAutorisees,
   // On restore la case d'arrivee
   *(tab+arrivee.L*nbColonnes+arrivee.C) = backup;
 
-  return nbCases; 
+  return nbCases;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -231,14 +231,14 @@ NOEUD* RecupereFmin(NOEUD** ppListeOuverte)
   {
     *ppListeOuverte = (*ppListeOuverte)->suivant;
     pMin->suivant = NULL;
-    return pMin;    
+    return pMin;
   }
 
   p2 = *ppListeOuverte;
   while (p2->suivant != pMin) p2 = p2->suivant;
   p2->suivant = pMin->suivant;
   pMin->suivant = NULL;
-  return pMin; 
+  return pMin;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -250,7 +250,7 @@ NOEUD* estPresent(NOEUD* pTete,int L,int C)
   {
     if ((p->L==L) && (p->C==C)) return p;
     else p = p->suivant;
-  } 
+  }
   return NULL;
 }
 
@@ -264,6 +264,6 @@ char valeurAutorisee(int valeur,int *valeursAutorisees,int nbValeursAutorisees)
   {
     if (valeur == valeursAutorisees[i]) trouve = 1;
     else i++;
-  } 
+  }
   return trouve;
 }

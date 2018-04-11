@@ -52,7 +52,7 @@ int OuvrirGrilleSDL(int nbLignes,int nbColonnes,int tailleCarre,const char* titr
   // Initialisation du Module Video
   if (SDL_Init(SDL_INIT_VIDEO) == -1)
     return -1;
-  
+
   // Definition de la fenetre
   if ((maGrille.ecran = SDL_SetVideoMode((nbColonnes*tailleCarre),(nbLignes*tailleCarre),32,SDL_HWSURFACE | SDL_DOUBLEBUF)) == NULL)
     return -2;
@@ -64,11 +64,11 @@ int OuvrirGrilleSDL(int nbLignes,int nbColonnes,int tailleCarre,const char* titr
   if (iconeFenetre)
   {
     Image = SDL_LoadBMP(iconeFenetre);
-    SDL_SetColorKey(Image,SDL_SRCCOLORKEY,SDL_MapRGB(Image->format,255,255,255)); 
+    SDL_SetColorKey(Image,SDL_SRCCOLORKEY,SDL_MapRGB(Image->format,255,255,255));
     SDL_WM_SetIcon(Image,NULL);
   }
 
-  atexit(SDL_Quit); // Pour quitter proprement la SDL lors de l'exit 
+  atexit(SDL_Quit); // Pour quitter proprement la SDL lors de l'exit
 
   // Initialisation du vecteur de sprites
   for (i=0 ; i<100 ; i++)
@@ -120,7 +120,7 @@ int FermerGrilleSDL()
   // Liberation memoire pour les differents sprites
   for (i=0 ; i<60 ; i++)
     if (maGrille.sprites[i].occupe) SDL_FreeSurface(maGrille.sprites[i].surface);
-  
+
   // Liberation memoire pour l'image de fond
   if (maGrille.fond != NULL) SDL_FreeSurface(maGrille.fond);
 
@@ -160,7 +160,7 @@ int DessineCouleurFond(int R,int G,int B)
 
   if (maGrille.fond == NULL)
     return -3;
-   
+
   // on peint l'image de fond avec la couleur voulue
   rect.x = 0;
   rect.y = 0;
@@ -169,7 +169,7 @@ int DessineCouleurFond(int R,int G,int B)
 
   if (SDL_FillRect(maGrille.fond,&rect,SDL_MapRGB((maGrille.fond)->format,R,G,B)) < 0)
     return -4;
-   
+
   // On dessine l'image de fond sur l'ecran
   offset.x = 0;
   offset.y = 0;
@@ -178,9 +178,9 @@ int DessineCouleurFond(int R,int G,int B)
 
   if (SDL_Flip(maGrille.ecran) < 0)
     return -6;
-  
+
   pthread_mutex_unlock(&(maGrille.mutexG));
-  
+
   return 0;
 }
 
@@ -203,16 +203,16 @@ int DessineImageFond(const char* nomFichier)
 
   if (maGrille.fond == NULL)
     return -2;
-   
+
   // On peint l'image de fond avec l'image chargee du fichier
   if ((image = ChargeImage(nomFichier)) == NULL)
     return -3;
-    
+
   offset.x = 0;
   offset.y = 0;
   if (SDL_BlitSurface(image,NULL,maGrille.fond,&offset) < 0)
     return -4;
-   
+
   // On dessine l'image de fond sur l'ecran
   offset.x = 0;
   offset.y = 0;
@@ -221,9 +221,9 @@ int DessineImageFond(const char* nomFichier)
 
   if (SDL_Flip(maGrille.ecran) < 0)
     return -6;
-  
+
   pthread_mutex_unlock(&(maGrille.mutexG));
-  
+
   return 0;
 }
 
@@ -242,13 +242,13 @@ int DessineCarre(int L,int C,int R,int G,int B)
   rect.y = L*maGrille.tailleCarre;
   rect.w = maGrille.tailleCarre;
   rect.h = maGrille.tailleCarre;
- 
+
   pthread_mutex_lock(&(maGrille.mutexG));
   if (maGrille.enVie)
   {
     if (SDL_FillRect(maGrille.ecran,&rect,SDL_MapRGB((maGrille.ecran)->format,R,G,B)) < 0)
       return -3;
-  
+
     SDL_UpdateRect(maGrille.ecran,rect.x,rect.y,rect.w,rect.h);
   }
   pthread_mutex_unlock(&(maGrille.mutexG));
@@ -271,7 +271,7 @@ int EffaceCarre(int L,int C)
 
   offset.x = C * maGrille.tailleCarre;
   offset.y = L * maGrille.tailleCarre;
- 
+
   pthread_mutex_lock(&(maGrille.mutexG));
   if (maGrille.enVie)
   {
@@ -303,7 +303,7 @@ int AjouteSprite(int code,const char* nomFichier)
   while (i<100 && !trouve)
   {
     if (maGrille.sprites[i].occupe && (maGrille.sprites[i].code == code)) trouve = 1;
-    else i++; 
+    else i++;
   }
 
   if (!trouve)
@@ -314,7 +314,7 @@ int AjouteSprite(int code,const char* nomFichier)
     while (i<100 && !trouve)
     {
       if (maGrille.sprites[i].occupe) i++;
-      else trouve = 1; 
+      else trouve = 1;
     }
 
     if (!trouve)
@@ -327,7 +327,7 @@ int AjouteSprite(int code,const char* nomFichier)
   {
     // On libere la memoire pour l'ancienne image
     SDL_FreeSurface(maGrille.sprites[i].surface);
-    maGrille.sprites[i].surface = NULL;    
+    maGrille.sprites[i].surface = NULL;
   }
 
   // Case trouvee dans le vecteur, on charge l'image
@@ -336,7 +336,7 @@ int AjouteSprite(int code,const char* nomFichier)
     pthread_mutex_unlock(&(maGrille.mutexG));
     return -3;
   }
-  
+
   // Verification de sa taille par rapport à la grille
   if (((maGrille.sprites[i].surface->w % maGrille.tailleCarre) != 0) || ((maGrille.sprites[i].surface->h % maGrille.tailleCarre) != 0))
   {
@@ -353,7 +353,7 @@ int AjouteSprite(int code,const char* nomFichier)
   maGrille.sprites[i].hauteur = maGrille.sprites[i].surface->h;
 
   pthread_mutex_unlock(&(maGrille.mutexG));
-  
+
   return 0;
 }
 
@@ -375,7 +375,7 @@ int AjouteSpriteAFondTransparent(int code,const char* nomFichier,int Rf,int Gf,i
   while (i<100 && !trouve)
   {
     if (maGrille.sprites[i].occupe && (maGrille.sprites[i].code == code)) trouve = 1;
-    else i++; 
+    else i++;
   }
 
   if (!trouve)
@@ -386,10 +386,10 @@ int AjouteSpriteAFondTransparent(int code,const char* nomFichier,int Rf,int Gf,i
     while (i<100 && !trouve)
     {
       if (maGrille.sprites[i].occupe) i++;
-      else trouve = 1; 
+      else trouve = 1;
     }
 
-    if (!trouve) 
+    if (!trouve)
     {
       pthread_mutex_unlock(&(maGrille.mutexG));
       return -2;
@@ -399,7 +399,7 @@ int AjouteSpriteAFondTransparent(int code,const char* nomFichier,int Rf,int Gf,i
   {
     // On libere la memoire pour l'ancienne image
     SDL_FreeSurface(maGrille.sprites[i].surface);
-    maGrille.sprites[i].surface = NULL;    
+    maGrille.sprites[i].surface = NULL;
   }
 
   // Case trouvee dans le vecteur, on charge l'image
@@ -408,7 +408,7 @@ int AjouteSpriteAFondTransparent(int code,const char* nomFichier,int Rf,int Gf,i
     pthread_mutex_unlock(&(maGrille.mutexG));
     return -3;
   }
-  
+
   // Verification de sa taille par rapport à la grille
   if (((maGrille.sprites[i].surface->w % maGrille.tailleCarre) != 0) || ((maGrille.sprites[i].surface->h % maGrille.tailleCarre) != 0))
   {
@@ -425,7 +425,7 @@ int AjouteSpriteAFondTransparent(int code,const char* nomFichier,int Rf,int Gf,i
   maGrille.sprites[i].hauteur = maGrille.sprites[i].surface->h;
 
   pthread_mutex_unlock(&(maGrille.mutexG));
-  
+
   return 0;
 }
 
@@ -480,51 +480,51 @@ int DessineSprite(int L,int C,int code)
 
 /////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////
-SDL_Surface* ChargeImage(const char *fichier) 
+SDL_Surface* ChargeImage(const char *fichier)
 {
-  // Surface tampon qui nous servira pour charger l'image 
-  SDL_Surface* loadedImage = NULL; 
+  // Surface tampon qui nous servira pour charger l'image
+  SDL_Surface* loadedImage = NULL;
 
-  // L'image optimisee qu'on va utiliser 
+  // L'image optimisee qu'on va utiliser
   SDL_Surface* optimizedImage = NULL;
 
   // Chargement de l'image
   loadedImage = SDL_LoadBMP(fichier);
 
   // Si le chargement se passe bien
-  if(loadedImage != NULL) 
-  { 
-    // Création de l'image optimisée 
-    optimizedImage = SDL_DisplayFormat(loadedImage); 
-		
+  if(loadedImage != NULL)
+  {
+    // Création de l'image optimisée
+    optimizedImage = SDL_DisplayFormat(loadedImage);
+
     // Libération de l'ancienne image
-    SDL_FreeSurface(loadedImage); 
+    SDL_FreeSurface(loadedImage);
   }
-	
-  // On retourne l'image optimisée 
-  return optimizedImage; 
+
+  // On retourne l'image optimisée
+  return optimizedImage;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
-SDL_Surface* ChargeImageAFondTransparent(const char *fichier,int Rf,int Gf,int Bf) 
+SDL_Surface* ChargeImageAFondTransparent(const char *fichier,int Rf,int Gf,int Bf)
 {
-  // Surface tampon qui nous servira pour charger l'image 
-  SDL_Surface* loadedImage = NULL; 
+  // Surface tampon qui nous servira pour charger l'image
+  SDL_Surface* loadedImage = NULL;
 
-  // L'image optimisee qu'on va utiliser 
+  // L'image optimisee qu'on va utiliser
   SDL_Surface* optimizedImage = NULL;
 
   // Chargement de l'image
   loadedImage = SDL_LoadBMP(fichier);
 
   // Si le chargement se passe bien
-  if(loadedImage != NULL) 
-  { 
-    // Création de l'image optimisée 
-    optimizedImage = SDL_DisplayFormat(loadedImage); 
-		
+  if(loadedImage != NULL)
+  {
+    // Création de l'image optimisée
+    optimizedImage = SDL_DisplayFormat(loadedImage);
+
     // Libération de l'ancienne image
-    SDL_FreeSurface(loadedImage); 
+    SDL_FreeSurface(loadedImage);
 
     //Si l'image optimisée créée est bonne
     if(optimizedImage != NULL)
@@ -535,9 +535,9 @@ SDL_Surface* ChargeImageAFondTransparent(const char *fichier,int Rf,int Gf,int B
       SDL_SetColorKey(optimizedImage,SDL_RLEACCEL | SDL_SRCCOLORKEY,colorkey);
     }
   }
-	
-  // On retourne l'image optimisée 
-  return optimizedImage; 
+
+  // On retourne l'image optimisée
+  return optimizedImage;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -548,7 +548,7 @@ EVENT_GRILLE_SDL ReadEvent()
   pthread_mutex_lock(&(maGrille.mutexR));
   event = maGrille.event;
   pthread_mutex_unlock(&(maGrille.mutexW));
-  
+
   return event;
 }
 
@@ -636,7 +636,7 @@ void* FctThreadEventSDL(void *p)
     }
 
     nanosleep(&temps,NULL); // Pour eviter la boucle infinie...
-  }  
+  }
 
   pthread_exit(NULL);
 }

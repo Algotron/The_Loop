@@ -46,7 +46,7 @@ typedef struct {
 #define lPiston 13
 #define cPiston 19
 
-int tab[NB_LIGNES][NB_COLONNES]={
+pthread_t tab[NB_LIGNES][NB_COLONNES]={
    {0,1,1,0,1,1,0,1,1,0,1,1,0,0,0,0,0,0,1,1},
    {0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0},
    {1,1,0,1,0,0,1,0,1,1,1,1,1,1,1,1,1,1,1,0},
@@ -128,5 +128,5 @@ int deplacement(CASE destination,int delai);
 void Alrm_Usr1(int);
 
 
-#define STATUEMAGE tab[event.ligne][event.colonne] == statue[0] || tab[event.ligne][event.colonne] == statue[1] ||tab[event.ligne][event.colonne] == statue[2] ||tab[event.ligne][event.colonne] == statue[3] || tab[event.ligne][event.colonne] == Mage1 || tab[event.ligne][event.colonne] == Mage2
+#define STATUEMAGE (tab[event.ligne][event.colonne] == statue[0]) || (tab[event.ligne][event.colonne] == statue[1]) || (tab[event.ligne][event.colonne] == statue[2]) || (tab[event.ligne][event.colonne] == statue[3]) || (tab[event.ligne][event.colonne] == Mage1) || (tab[event.ligne][event.colonne] == Mage2)
 #endif

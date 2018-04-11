@@ -48,7 +48,7 @@ int DessineCouleurFond(int R,int G,int B);          // RGB compris entre 0 et 25
 int DessineImageFond(const char* nomFichier);
 int DessineCarre(int L,int C,int R,int G,int B);    // RGB compris entre 0 et 255
 int EffaceCarre(int L,int C);                       // Restitue l'image (ou la couleur) de fond
-int AjouteSprite(int code,const char* nomFichier);  
+int AjouteSprite(int code,const char* nomFichier);
 // code represente la valeur entier utilisee pour identifier un sprite, et sera utilise dans la fonction
 // DessineSprite
 // La largeur et la hauteur du sprite doivent etre un multiple de tailleCarre

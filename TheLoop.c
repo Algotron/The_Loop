@@ -12,6 +12,13 @@
 int main(int argc,char* argv[])
 {
 	sigset_t mask;
+
+	//masquage SIGHUP & SIGALRM
+	sigemptyset(&mask);
+  sigaddset(&mask, SIGHUP);
+	sigaddset(&mask, SIGALRM);	sigprocmask(SIG_SETMASK, &mask, NULL);
+	sigprocmask(SIG_SETMASK, &mask, NULL);
+
   srand((unsigned)time(NULL));
 
   // Ouverture de la fenetre graphique
@@ -28,14 +35,9 @@ int main(int argc,char* argv[])
 	//Redirection des signaux SIGUSR1 & SIGALRM
   struct sigaction sigAct;
   sigAct.sa_handler = Alrm_Usr1;
+	sigAct.sa_flags = 0;
 	sigaction(SIGALRM, &sigAct, NULL);
   sigaction(SIGUSR1, &sigAct, NULL);
-
-  //masquage de SIGHUP & SIGALRM
-  sigemptyset(&mask);
-  sigaddset(&mask, SIGHUP);
-	sigaddset(&mask, SIGALRM);
-  sigprocmask(SIG_SETMASK, &mask, NULL);
 
   //création de la key variable specifique
   pthread_key_create(&key, NULL);
@@ -249,6 +251,7 @@ void * threadPoseurBilles(void* param)
 
 void * threadBille(void * param)
 {
+	DBG("thread bille : %d\n", pthread_self());
 	int row, column;
 	int * couleur = (int *)param;
 	attenteBille.tv_nsec = 0;
@@ -369,13 +372,17 @@ void * threadEvent(void * param)
 							{
 								pthread_mutex_unlock(&mutexRequetes);
 								DessineCroix(event.ligne, event.colonne);
-								DBG("catpture impssible\n");
+								DBG("catpture impossible\n");
 							}
 						}
 						else if(STATUEMAGE)
 						{
 							pthread_kill(tab[event.ligne][event.colonne], SIGUSR1);
-							DBG("signal envoyé a %d", tab[event.ligne][event.colonne]);
+							DBG("signal envoyé a %d\n", tab[event.ligne][event.colonne]);
+						}
+						else
+						{
+							DBG("tab : %d tid : %d \n",tab[event.ligne][event.colonne], statue[0]);
 						}
 
 						pthread_mutex_unlock(&mutexTab);
@@ -1061,6 +1068,7 @@ void Alrm_Usr1(int sig)
 		{
 			tAlarm = (rand() % (15 - 5 + 1) + 5);
 			alarm(tAlarm);
+			DBG("Prochain alarm() dans %ds\ns", tAlarm);
 		}
 
 

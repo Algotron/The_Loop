@@ -9,13 +9,15 @@
 #ifndef A_STAR_H
 #define A_STAR_H
 
+#include <pthread.h>
+
 typedef struct _case
 {
   int L;  // ligne d'une case du tableau
   int C;  // colonne d'une case du tableau
 } CASE;   // represente une case du tableau
 
-int RechercheChemin(int* tab,int nbLignes,int nbColonnes,int *valeursAutorisees,int nbValeursAutorisees,CASE depart,CASE arrivee,CASE** pChemin);
+int RechercheChemin(pthread_t* tab,int nbLignes,int nbColonnes,int *valeursAutorisees,int nbValeursAutorisees,CASE depart,CASE arrivee,CASE** pChemin);
 
 // tab = tableau 2D d'entiers representant le terrain sur lequel le chemin le plus court doit etre recherche
 // nbLignes,nbColonnes = dimensions du tableau 2D tab
