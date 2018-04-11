@@ -142,7 +142,7 @@ int OuvertureFenetreGraphique()
 {
   if (OuvrirGrilleSDL(15,20,40,"The Loop","./images/IconeFenetre256.bmp") < 0)
     return -1;
- 
+
   ChargementImages();
   //DessineSprite(19,14,S_NIVEAU);
 
@@ -164,7 +164,7 @@ void DessineBille(int l,int c,int couleur)
     case ROUGE  : DessineSprite(l,c,BILLE_ROUGE); break;
     case VERT   : DessineSprite(l,c,BILLE_VERTE); break;
     case VIOLET : DessineSprite(l,c,BILLE_VIOLETTE); break;
-    default     : DessineSprite(l,c,BILLE_GRISE); break;    
+    default     : DessineSprite(l,c,BILLE_GRISE); break;
   }
 }
 
@@ -184,7 +184,7 @@ void DessineStatue(int l,int c,int dir,int couleur)
       case ROUGE  : DessineSprite(l,c,STATUE_FACE_DIAMANT_ROUGE); break;
       case VERT   : DessineSprite(l,c,STATUE_FACE_DIAMANT_VERT); break;
       case VIOLET : DessineSprite(l,c,STATUE_FACE_DIAMANT_VIOLET); break;
-      default     : DessineSprite(l,c,STATUE_FACE_SANS_DIAMANT); break;    
+      default     : DessineSprite(l,c,STATUE_FACE_SANS_DIAMANT); break;
     }
     return;
   }
@@ -197,7 +197,7 @@ void DessineStatue(int l,int c,int dir,int couleur)
       case ROUGE  : DessineSprite(l,c,STATUE_GAUCHE_DIAMANT_ROUGE); break;
       case VERT   : DessineSprite(l,c,STATUE_GAUCHE_DIAMANT_VERT); break;
       case VIOLET : DessineSprite(l,c,STATUE_GAUCHE_DIAMANT_VIOLET); break;
-      default     : DessineSprite(l,c,STATUE_GAUCHE_SANS_DIAMANT); break;    
+      default     : DessineSprite(l,c,STATUE_GAUCHE_SANS_DIAMANT); break;
     }
     return;
   }
@@ -210,7 +210,7 @@ void DessineStatue(int l,int c,int dir,int couleur)
       case ROUGE  : DessineSprite(l,c,STATUE_DROITE_DIAMANT_ROUGE); break;
       case VERT   : DessineSprite(l,c,STATUE_DROITE_DIAMANT_VERT); break;
       case VIOLET : DessineSprite(l,c,STATUE_DROITE_DIAMANT_VIOLET); break;
-      default     : DessineSprite(l,c,STATUE_DROITE_SANS_DIAMANT); break;    
+      default     : DessineSprite(l,c,STATUE_DROITE_SANS_DIAMANT); break;
     }
     return;
   }
@@ -232,7 +232,7 @@ void DessineMage(int l,int c,int dir,int couleur)
       case ROUGE  : DessineSprite(l,c,MAGE_FACE_DIAMANT_ROUGE); break;
       case VERT   : DessineSprite(l,c,MAGE_FACE_DIAMANT_VERT); break;
       case VIOLET : DessineSprite(l,c,MAGE_FACE_DIAMANT_VIOLET); break;
-      default     : DessineSprite(l,c,MAGE_FACE_SANS_DIAMANT); break;    
+      default     : DessineSprite(l,c,MAGE_FACE_SANS_DIAMANT); break;
     }
     return;
   }
@@ -245,7 +245,7 @@ void DessineMage(int l,int c,int dir,int couleur)
       case ROUGE  : DessineSprite(l,c,MAGE_GAUCHE_DIAMANT_ROUGE); break;
       case VERT   : DessineSprite(l,c,MAGE_GAUCHE_DIAMANT_VERT); break;
       case VIOLET : DessineSprite(l,c,MAGE_GAUCHE_DIAMANT_VIOLET); break;
-      default     : DessineSprite(l,c,MAGE_GAUCHE_SANS_DIAMANT); break;    
+      default     : DessineSprite(l,c,MAGE_GAUCHE_SANS_DIAMANT); break;
     }
     return;
   }
@@ -258,7 +258,7 @@ void DessineMage(int l,int c,int dir,int couleur)
       case ROUGE  : DessineSprite(l,c,MAGE_DROITE_DIAMANT_ROUGE); break;
       case VERT   : DessineSprite(l,c,MAGE_DROITE_DIAMANT_VERT); break;
       case VIOLET : DessineSprite(l,c,MAGE_DROITE_DIAMANT_VIOLET); break;
-      default     : DessineSprite(l,c,MAGE_DROITE_SANS_DIAMANT); break;    
+      default     : DessineSprite(l,c,MAGE_DROITE_SANS_DIAMANT); break;
     }
     return;
   }
@@ -270,7 +270,7 @@ void DessineMur(int l,int c,int type)
   {
     case PIERRE : DessineSprite(l,c,MUR_PIERRE); break;
     case METAL  : DessineSprite(l,c,MUR_METAL); break;
-    default     : DessineSprite(l,c,MUR_METAL); break;    
+    default     : DessineSprite(l,c,MUR_METAL); break;
   }
 }
 
@@ -280,7 +280,7 @@ void DessinePiston(int l,int c,int type)
   {
     case TETE : DessineSprite(l,c,PISTON_TETE); break;
     case TIGE : DessineSprite(l,c,PISTON_TIGE); break;
-    default     : DessineSprite(l,c,PISTON_TIGE); break;    
+    default     : DessineSprite(l,c,PISTON_TIGE); break;
   }
 }
 
@@ -298,7 +298,7 @@ void DessineChiffre(int l,int c,int chiffre)
     case 7 : DessineSprite(l,c,S_SEPT); break;
     case 8 : DessineSprite(l,c,S_HUIT); break;
     case 9 : DessineSprite(l,c,S_NEUF); break;
-    default : DessineSprite(l,c,S_ZERO); break;    
+    default : DessineSprite(l,c,S_ZERO); break;
   }
 }
 
@@ -316,4 +316,3 @@ void DessineCroix(int l,int c)
 {
   DessineSprite(l,c,S_CROIX);
 }
-

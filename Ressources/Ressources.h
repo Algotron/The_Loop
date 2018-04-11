@@ -13,7 +13,12 @@
 #define ROUGE           400012
 #define VERT            400013
 #define VIOLET          400014
+
+/*ajoute 5 à une couleur pour ne plus qu'on puisse cliquer dessus
+ quand elle est emprisonnée, dans la pile ou dans la file*/
 #define PRISE(x)        x+5
+
+/*retire 5 à une couleur pour récupérer la couleur*/
 #define PPRISE(x)       x-5
 
 
