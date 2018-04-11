@@ -63,15 +63,17 @@ pthread_t tab[NB_LIGNES][NB_COLONNES]={
    {0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0},
    {0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1}};
 
-//macros de timining
-#define BILLETMAX 1 //temps aléatoire max entre deux billes
-#define BILLETMIN 1 //temps aléatoire max entre deux billes
-#define STATUEMSEC 300 //milisec entre deux déplacements d'une statue
-#define MAGEMSEC 200 //milisec entre deux déplacements d'un mage
+//variables de timining en milisecondes
+int billeTmax = 100; //temps aléatoire max entre deux billes
+int billeTmin = 100; //temps aléatoire max entre deux billes
+int statueT = 300; //milisec entre deux déplacements d'une statue
+int mageT = 200; //milisec entre deux déplacements d'un mage
+int clicBille = 300; //temps avant dispatrition d'une bille
+int attentePFile = 1000; //interval de vérification de place dans la pile/file
+int enfile = 300; //interval descente d'une bille dans la file
 
 //variables globales
 int nbBilles;
-timespec attenteBille;
 CASE requetes[NB_MAX_REQUETES + 1];
 int indRequetesE = 0;
 int indRequetesL  = 0;
@@ -91,7 +93,7 @@ int nbFileViolet = 0;
 pthread_key_t key;
 
 //tid des threads
-pthread_t poseur,Mage1, Mage2, expendable_t;
+pthread_t poseur,Mage1, Mage2, chrono, expendable_t;
 pthread_t statue[4];
 
 //déclaration & initilisation des mutex
@@ -118,6 +120,8 @@ void * threadMage1(void *);
 void * threadMage2(void *);
 void * threadBilleQuiRoule(void *);
 void * threadPiston(void *);
+void * threadChrono(void *);
+
 
 //prototypes de fonctions
 void initGrille();

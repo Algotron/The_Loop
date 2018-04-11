@@ -58,6 +58,10 @@ int main(int argc,char* argv[])
 		col += 3;
 	}
 
+	/*création du thread threadChrono*/
+	pthread_create(&chrono, NULL, threadChrono, NULL);
+	DBG("création du thread threadChrono %d\n", expendable_t);
+
 	/*création du thread threadPoseurBilles*/
 	pthread_create(&poseur, NULL, threadPoseurBilles, NULL);
 	DBG("création du thread threadPoseurBilles %d\n", poseur);
@@ -154,10 +158,10 @@ bool CaseReservee(CASE Case)
 void * threadPoseurBilles(void* param)
 {
 	timespec sleepTime;
-	sleepTime.tv_nsec = 0;
 	int billeColor, stop, blocked = 0, cmptColor = 0;
 	pthread_t billeTid;
 	sigset_t mask;
+	int resultat;
 
 	//masquage de SIGHUP & SIGALRM
 	sigemptyset(&mask);
@@ -178,12 +182,15 @@ void * threadPoseurBilles(void* param)
 
 	while(nbBilles > 0)
 	{
-		//DBG("Dans Poseur de billes\n");
 		pthread_mutex_unlock(&mutexNbBilles);
 
 		//temps aléatoire entre deux billes
-		sleepTime.tv_sec = (rand() % BILLETMAX + BILLETMIN);
-		//DBG("temps alléatoire de %d\n", sleepTime.tv_sec);
+		resultat = (rand() % (billeTmax - billeTmin + 1)) + billeTmin;
+		sleepTime.tv_sec = resultat / 1000;
+	  sleepTime.tv_nsec = (resultat % 1000) * 1000000;
+
+		DBG("Prochaine bille dans %dmillisec\n", resultat);
+
 		nanosleep(&sleepTime, NULL);
 
 		/*blocage de nouveau threadBille si nbRequetesNonTraites = NB_MAX_REQUETES
@@ -251,11 +258,13 @@ void * threadPoseurBilles(void* param)
 
 void * threadBille(void * param)
 {
-	DBG("thread bille : %d\n", pthread_self());
 	int row, column;
 	int * couleur = (int *)param;
-	attenteBille.tv_nsec = 0;
-	attenteBille.tv_sec = 3;
+	timespec attenteBille;
+
+	attenteBille.tv_sec =  clicBille / 1000;
+	attenteBille.tv_nsec = (clicBille % 1000) * 1000000;
+
 	sigset_t mask;
 
 	//masquage de SIGHUP & SIGALRM
@@ -294,8 +303,6 @@ void * threadBille(void * param)
 	pthread_mutex_lock(&mutexTab);
 	if(tab[row][column] <= VIOLET && tab[row][column] >= JAUNE)
 	{
-		DBG("bille pas prise %d\n",tab[row][column]);
-
 		pthread_mutex_unlock(&mutexTab);
 
 		EffaceCarre(row,column);
@@ -383,10 +390,6 @@ void * threadEvent(void * param)
 							pthread_kill(tab[event.ligne][event.colonne], SIGUSR1);
 							DBG("signal envoyé a %d\n", tab[event.ligne][event.colonne]);
 						}
-						else
-						{
-							DBG("tab : %d tid : %d \n",tab[event.ligne][event.colonne], statue[0]);
-						}
 
 						pthread_mutex_unlock(&mutexTab);
 				break;
@@ -419,9 +422,6 @@ void * threadStatues(void * param)
 	sigaddset(&mask, SIGHUP);
 	sigprocmask(SIG_SETMASK, &mask, NULL);
 
-  tPile.tv_nsec = 0;
-  tPile.tv_sec = 1;
-
 	/*mise du tid threadStatues dans tab*/
 	pthread_mutex_lock(&mutexTab);
 	tab[caseStatue->L][caseStatue->C] = pthread_self();
@@ -437,6 +437,10 @@ void * threadStatues(void * param)
 
 	while(1)
 	{
+		// initilisation de la tempo
+		tPile.tv_sec = attentePFile / 1000;
+		tPile.tv_nsec = (attentePFile % 1000) * 1000000;
+
     //(ré)initilisation bille V specifique
     sID->bille = 0;
     pthread_setspecific(key, (void*)sID);
@@ -460,7 +464,7 @@ void * threadStatues(void * param)
 		DBG("requete: %d case[%d][%d] Tid:%d\n", indRequetesL, caseArrive.L, caseArrive.C, pthread_self());
 
     //deplacement vers la bille
-    sID->bille = deplacement(caseArrive,STATUEMSEC);
+    sID->bille = deplacement(caseArrive,statueT);
     DessineStatue(sID->position.L,sID->position.C, BAS,sID->bille );
 
     //on donne la couleurs de la bille qui remonte
@@ -472,7 +476,7 @@ void * threadStatues(void * param)
     pthread_mutex_unlock(&mutexRequetes);
 
     //deplacement vers place statue
-    deplacement(*caseStatue,STATUEMSEC);
+    deplacement(*caseStatue,statueT);
 
     //dessine la statue en attente avec la bille en main
     DessineStatue(sID->position.L, sID->position.C, BAS, sID->bille);
@@ -519,7 +523,7 @@ int deplacement(CASE destination,int delai)
   int couleur;
 
 	waitTime.tv_sec = delai / 1000;
-  waitTime.tv_nsec = (delai - waitTime.tv_sec) * 1000000;
+  waitTime.tv_nsec = (delai % 1000) * 1000000;
 
   //récupération des données de la v specifique
   sID = (S_IDENTITE *)pthread_getspecific(key);
@@ -637,7 +641,7 @@ void * threadMage1(void * param)
     pthread_mutex_unlock(&mutexPile);
 
     //déplacement haut de la pile
-    couleur = deplacement(casePile, MAGEMSEC);
+    couleur = deplacement(casePile, mageT);
     pthread_mutex_lock(&mutexPile);
 
     //vérification ajout bille pendant deplacement
@@ -645,7 +649,7 @@ void * threadMage1(void * param)
     {
       casePile.C++;
       pthread_mutex_unlock(&mutexPile);
-      couleur = deplacement(casePile, MAGEMSEC);
+      couleur = deplacement(casePile, mageT);
       pthread_mutex_lock(&mutexPile);
     }
 
@@ -670,7 +674,7 @@ void * threadMage1(void * param)
     pthread_kill(Mage2, SIGHUP);
 
     //se deplace vers la case d'échange
-    deplacement(caseEchange, MAGEMSEC);
+    deplacement(caseEchange, mageT);
     DessineMage(caseEchange.L, caseEchange.C, DROITE, couleur);
 
     //attente de Mage2
@@ -690,7 +694,7 @@ void * threadMage1(void * param)
     pthread_setspecific(key, (void*)sID);
 
     //retourne vers sa case de départ
-    deplacement(caseMage1, MAGEMSEC);
+    deplacement(caseMage1, mageT);
 
     //redessine le mage sans bille vers la DROITE
     DessineMage(caseMage1.L, caseMage1.C, DROITE, 0);
@@ -732,9 +736,6 @@ void * threadMage2(void * param)
   sID->bille = 0;
   pthread_setspecific(key, (void*)sID);
 
-  waitTemp.tv_nsec = 300000000;
-  waitTemp.tv_sec = 0;
-
   DessineMage(caseMage2.L, caseMage2.C, DROITE, 0);
 	pthread_mutex_lock(&mutexTab);
 	tab[caseMage2.L][caseMage2.C] = pthread_self();
@@ -742,11 +743,15 @@ void * threadMage2(void * param)
 
   while(1)
   {
+		// initilisation de la tempo
+		waitTemp.tv_sec = attentePFile / 1000;
+		waitTemp.tv_nsec = (attentePFile % 1000) * 1000000;
+
     //attente de notification de Mage1
     sigwait(&set, &sig);
 
     //deplacement vers la case d'echange
-    deplacement(caseEchange2, MAGEMSEC);
+    deplacement(caseEchange2, mageT);
     DessineMage(caseEchange2.L, caseEchange2.C, GAUCHE, 0);
 
     //débloque le mutex pour Mage1
@@ -774,7 +779,7 @@ void * threadMage2(void * param)
     else
       caseFile.C = 18;
 
-    deplacement(caseFile, MAGEMSEC);
+    deplacement(caseFile, mageT);
     DessineMage(caseFile.L, caseFile.C, BAS, sID->bille);
 
     //attente de place dans la file
@@ -801,7 +806,7 @@ void * threadMage2(void * param)
     pthread_setspecific(key, (void*)sID);
 
     //retourne a sa case
-    deplacement(caseMage2, MAGEMSEC);
+    deplacement(caseMage2, mageT);
 
     DessineMage(caseMage2.L, caseMage2.C, DROITE, 0);
 
@@ -820,8 +825,9 @@ void * threadBilleQuiRoule(void * param)
 	sigaddset(&mask, SIGALRM);
 	sigprocmask(SIG_SETMASK, &mask, NULL);
 
-  waitTemp.tv_nsec = 300000000;
-  waitTemp.tv_sec = 0;
+	// initilisation de la tempo
+	waitTemp.tv_sec = enfile / 1000;
+	waitTemp.tv_nsec = (enfile % 1000) * 1000000;
 
   pthread_mutex_lock(&mutexFile);
   if (args->couleur == JAUNE)
@@ -839,7 +845,7 @@ void * threadBilleQuiRoule(void * param)
   pthread_mutex_lock(&mutexTab);
   while(tab[args->lance.L][args->lance.C] == 0 && args->lance.L <= 12)
   {
-    tab[args->lance.L][args->lance.C] = -args->couleur;
+    tab[args->lance.L][args->lance.C] = PRISE(args->couleur);
 
     //supression du mouvement precedent
     if (args->lance.L > 8)
@@ -875,11 +881,13 @@ void * threadPiston(void * param)
 	sigaddset(&mask, SIGALRM);
 	sigprocmask(SIG_SETMASK, &mask, NULL);
 
-  waitTemp.tv_nsec = 600000000;
-  waitTemp.tv_sec = 0;
-
   while (1)
   {
+
+		// initilisation de la tempo
+		waitTemp.tv_sec = enfile / 1000;
+		waitTemp.tv_nsec = (enfile % 1000) * 1000000;
+
     caseTete.L = lPiston;
     caseTete.C = cPiston;
 
@@ -1073,6 +1081,56 @@ void Alrm_Usr1(int sig)
 			alarm(tAlarm);
 			DBG("Prochain alarm() dans %ds\ns", tAlarm);
 		}
+}
 
+void * threadChrono(void *)
+{
+	sigset_t mask;
+	timespec timeWait;
+	int compteur = 0;
+
+	//masquage SIGHUP & SIGALRM
+	sigemptyset(&mask);
+  sigaddset(&mask, SIGHUP);
+	sigaddset(&mask, SIGALRM);	sigprocmask(SIG_SETMASK, &mask, NULL);
+	sigprocmask(SIG_SETMASK, &mask, NULL);
+
+	//dessine les dizaines puis unités de nbBilles
+	DessineChiffre(9, 11, 0);
+	DessineChiffre(9, 12, 0);
+	DessineChiffre(9, 13, 0);
+
+	timeWait.tv_nsec = 0;
+	timeWait.tv_sec = 1;
+
+	while(1)
+	{
+		pthread_mutex_lock(&mutexNbBilles);
+		if(nbBilles == 0)
+		{
+			pthread_mutex_unlock(&mutexNbBilles);
+			pthread_exit(NULL);
+		}
+		pthread_mutex_unlock(&mutexNbBilles);
+
+		nanosleep(&timeWait, NULL);
+		compteur++;
+		DessineChiffre(9, 11, compteur / 100);
+		DessineChiffre(9, 12, (compteur % 100) / 10);
+		DessineChiffre(9, 13,  compteur % 10);
+
+		//si le compteur est multiple de 60
+		if(!(compteur % 60))
+		{
+			DBG("accélération\n");
+			billeTmax *= 0.9;
+			billeTmin *= 0.9;
+			statueT *= 0.9;
+			mageT *= 0.9;
+			clicBille *= 0.9;
+			attentePFile *= 0.9;
+			enfile *= 0.9;
+		}
+	}
 
 }
