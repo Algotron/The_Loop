@@ -292,8 +292,10 @@ void * threadBille(void * param)
 
 	/*Si apres le nanosleep la couleur n'est pas négative dans tab elle disparait*/
 	pthread_mutex_lock(&mutexTab);
-	if(tab[row][column] >= 0)
+	if(tab[row][column] <= VIOLET && tab[row][column] >= JAUNE)
 	{
+		DBG("bille pas prise %d\n",tab[row][column]);
+
 		pthread_mutex_unlock(&mutexTab);
 
 		EffaceCarre(row,column);
@@ -364,7 +366,8 @@ void * threadEvent(void * param)
 
 								DessinePrison(event.ligne, event.colonne, JAUNE);
 								/*inversion de la valeur couleur dans tab*/
-								tab[event.ligne][event.colonne] = -tab[event.ligne][event.colonne];
+								tab[event.ligne][event.colonne] = PRISE(tab[event.ligne][event.colonne]);
+								DBG("bille prise %d\n",tab[event.ligne][event.colonne]);
 
 								pthread_cond_signal(&condRequetes);
 							}
@@ -485,7 +488,7 @@ void * threadStatues(void * param)
 
     //insertion couleurBille dans tab
     pthread_mutex_lock(&mutexTab);
-    tab[0][indPile + 12] = -sID->bille;
+    tab[0][indPile + 12] = PRISE(sID->bille);
     pthread_mutex_unlock(&mutexTab);
 
     //Dessine la bille case 12-13-14-15-16-17
@@ -523,9 +526,9 @@ int deplacement(CASE destination,int delai)
 
   //si Mage couleur [0][C] dans pile
   if(sID->id == STATUE)
-    couleur = -tab[destination.L][destination.C];
+    couleur = PPRISE(tab[destination.L][destination.C]);
   else
-    couleur = -tab[0][destination.C];
+    couleur = PPRISE(tab[0][destination.C]);
 
   // tant que la position est differente de la destination
   while(sID->position.L != destination.L || sID->position.C != destination.C)
@@ -943,7 +946,7 @@ void * threadPiston(void * param)
 			EffaceCarre(i, cBille);
 			DessineBille(i + 1, cBille, couleur);
 			tab[i][cBille] = VIDE;
-			tab[i + 1][cBille] = -couleur;
+			tab[i + 1][cBille] = PRISE(couleur);
 			pthread_mutex_unlock(&mutexTab);
 			i--;
 			nanosleep(&waitTemp,NULL);

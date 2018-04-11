@@ -7,12 +7,16 @@
 #define GAUCHE          400003
 #define DROITE          400004
 
-// Macros (couleur) 
+// Macros (couleur)
 #define GRIS            400010
 #define JAUNE           400011
 #define ROUGE           400012
 #define VERT            400013
 #define VIOLET          400014
+#define PRISE(x)        x+5
+#define PPRISE(x)       x-5
+
+
 
 // Macros (type) pour les murs
 #define PIERRE          400020

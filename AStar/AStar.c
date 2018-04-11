@@ -19,7 +19,7 @@ NOEUD*  estPresent(NOEUD* pTete,int L,int C);
 char    valeurAutorisee(int valeur,int *valeursAutorisees,int nbValeursAutorisees);
 
 ///// Definition des fonctions ////////////////////////////////////////////////////////////////////
-int RechercheChemin(pthread_t * tab,int nbLignes,int nbColonnes,int *valeursAutorisees,int nbValeursAutorisees,CASE depart,CASE arrivee,CASE **pChemin)
+int RechercheChemin(pthread_t* tab,int nbLignes,int nbColonnes,int *valeursAutorisees,int nbValeursAutorisees,CASE depart,CASE arrivee,CASE **pChemin)
 {
   char fini=0,trouve=0;
   int backup,i,L,C,newWG,nbCases;
