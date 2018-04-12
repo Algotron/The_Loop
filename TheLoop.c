@@ -97,11 +97,13 @@ int main(int argc,char* argv[])
 
 	pthread_join(poseur, NULL);
 
+	pthread_mutex_lock(&mutexTab);
+
 	DBG("GAME OVER\n");
 	setTitreGrilleSDL("GAME OVER");
 	DessineImageFond("./images/game-over.bmp");
-	DessineChiffre(3, 10, compteur / 100);
-	DessineChiffre(3, 10, (compteur % 100) / 10);
+	DessineChiffre(3, 8, compteur / 100);
+	DessineChiffre(3, 9, (compteur % 100) / 10);
 	DessineChiffre(3, 10,  compteur % 10);
 	pause();
 
