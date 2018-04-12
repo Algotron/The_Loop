@@ -393,7 +393,7 @@ void * threadEvent(void * param)
 								DBG("catpture impossible\n");
 							}
 						}
-						else if(tab[event.ligne][event.colonne]  < 0 && tab[event.ligne][event.colonne] > -JAUNE)
+						else if(tab[event.ligne][event.colonne]  > 0 && tab[event.ligne][event.colonne] < JAUNE)
 						{
 							pthread_kill(tab[event.ligne][event.colonne], SIGUSR1);
 							DBG("signal envoyé a %d\n", tab[event.ligne][event.colonne]);
