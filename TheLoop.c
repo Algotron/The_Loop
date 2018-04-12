@@ -1220,7 +1220,6 @@ void * threadChrono(void * param)
 			tEfface *= 0.9;
 		}
 	}
-
 }
 
 void * threadPoseurMur(void * param)
@@ -1254,7 +1253,7 @@ void * threadMur(void * param)
 	//masquage signaux
 	sigemptyset(&mask);
   sigaddset(&mask, SIGHUP);
-	sigaddset(&mask, SIGALRM);	sigprocmask(SIG_SETMASK, &mask, NULL);
+	sigaddset(&mask, SIGALRM);
 	sigprocmask(SIG_SETMASK, &mask, NULL);
 
 	//creation du set de signaux pour sigwait
