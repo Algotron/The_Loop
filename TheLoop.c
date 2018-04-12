@@ -13,7 +13,7 @@ int main(int argc,char* argv[])
 {
 	sigset_t mask;
 
-	//masquage SIGHUP & SIGALRM
+	//masquage tous les signaux
 	sigemptyset(&mask);
   sigaddset(&mask, SIGHUP);
 	sigaddset(&mask, SIGALRM);	sigprocmask(SIG_SETMASK, &mask, NULL);
@@ -89,12 +89,20 @@ int main(int argc,char* argv[])
   pthread_create(&expendable_t, NULL, threadPiston, NULL);
 	DBG("création du thread threadPiston %d\n", expendable_t);
 
+	/*Création du thread threadPoseurMur*/
+	pthread_create(&expendable_t, NULL, threadPoseurMur, NULL);
+	DBG("création du thread threadPoseurMur %d\n", expendable_t);
+
 	alarm(tAlarm);
 
 	pthread_join(poseur, NULL);
 
 	DBG("GAME OVER\n");
 	setTitreGrilleSDL("GAME OVER");
+	DessineImageFond("./images/game-over.bmp");
+	DessineChiffre(3, 10, compteur / 100);
+	DessineChiffre(3, 10, (compteur % 100) / 10);
+	DessineChiffre(3, 10,  compteur % 10);
 	pause();
 
   /*Fermeture de la grille de jeu (SDL)*/
@@ -385,7 +393,7 @@ void * threadEvent(void * param)
 								DBG("catpture impossible\n");
 							}
 						}
-						else if(STATUEMAGE)
+						else if(tab[event.ligne][event.colonne]  < 0 && tab[event.ligne][event.colonne] > -JAUNE)
 						{
 							pthread_kill(tab[event.ligne][event.colonne], SIGUSR1);
 							DBG("signal envoyé a %d\n", tab[event.ligne][event.colonne]);
@@ -474,7 +482,7 @@ void * threadStatues(void * param)
     //on donne la couleurs de la bille qui remonte
     pthread_setspecific(key, (void*)sID);
 
-		nanosleep();
+		nanosleep(&tDecrementation,NULL);
 
     //décrémentation du nombre de requete non traitées
     pthread_mutex_lock(&mutexRequetes);
@@ -892,7 +900,7 @@ void * threadPiston(void * param)
 
 		// initilisation de la tempo
 		waitTemp.tv_sec = enfile / 1000;
-		waitTemp.tv_nsec = (enfile % 1000) * 1000000
+		waitTemp.tv_nsec = (enfile % 1000) * 1000000;
 
 		// initilisation de la tempo
 		effacebille.tv_sec = tEfface / 1000;
@@ -1087,17 +1095,16 @@ void Alrm_Usr1(int sig)
 		//tirage du prochain SIGALRM
 		if (sig = SIGALRM)
 		{
-			tAlarm = (rand() % (15 - 5 + 1) + 5);
+			tAlarm = (rand() % (15 - 5 + 1)) + 5;
 			alarm(tAlarm);
 			DBG("Prochain alarm() dans %ds\ns", tAlarm);
 		}
 }
 
-void * threadChrono(void *)
+void * threadChrono(void * param)
 {
 	sigset_t mask;
 	timespec timeWait;
-	int compteur = 0;
 
 	//masquage SIGHUP & SIGALRM
 	sigemptyset(&mask);
@@ -1144,5 +1151,87 @@ void * threadChrono(void *)
 			tEfface *= 0.9;
 		}
 	}
+
+}
+
+void * threadPoseurMur(void * param)
+{
+	timespec waitTemp;
+	int temps;
+
+	while (1)
+	{
+		temps = (rand() % (lanceMurMax - lanceMurMin + 1 )) + lanceMurMin;
+		waitTemp.tv_sec =	temps / 1000;
+		waitTemp.tv_nsec = (temps % 1000) * 1000000;
+
+		nanosleep(&waitTemp, NULL);
+
+		//création d'un thread mur
+		pthread_create(&expendable_t, NULL, threadMur, NULL);
+
+	}
+}
+
+
+void * threadMur(void * param)
+{
+	timespec timeWait;
+	CASE randCase;
+	int cMin, cMax, sig;
+	sigset_t set;
+
+	//creation du set de signaux pour sigwait
+	sigemptyset(&set);
+	sigaddset(&set, SIGUSR1);
+
+	timeWait.tv_sec =	attenteMur / 1000;
+	timeWait.tv_nsec = (attenteMur % 1000) * 1000000;
+
+
+	if (((rand() % 3) + 1) == 3)
+	{
+		cMin = 11;
+		cMax = 19;
+	}
+	else
+	{
+		cMin = 0;
+		cMax = 9;
+	}
+
+
+	do
+	{
+		//row min =0  row max = NB_LIGNES -1
+		randCase.L = (rand() %((NB_LIGNES - 1) - 0 + 1)) + 0;
+		//column min = 0 | 11 column max = 9 | 19
+		randCase.C = (rand() % (cMax - cMin + 1)) + cMin;
+	}
+	while(CaseReservee(randCase));
+
+	//pid négatif dans tab pour empecher le clic
+	pthread_mutex_lock(&mutexTab);
+	tab[randCase.L][randCase.C] = -pthread_self();
+	pthread_mutex_unlock(&mutexTab);
+
+	DessineMur(randCase.L, randCase.C , METAL);
+
+	nanosleep(&timeWait, NULL);
+
+	//pid négatif dans tab pour autoriser le clic
+	pthread_mutex_lock(&mutexTab);
+	tab[randCase.L][randCase.C] = pthread_self();
+	pthread_mutex_unlock(&mutexTab);
+
+	DessineCroix(randCase.L, randCase.C);
+
+	sigwait(&set, &sig);
+
+	pthread_mutex_lock(&mutexTab);
+	tab[randCase.L][randCase.C] = VIDE;
+	pthread_mutex_unlock(&mutexTab);
+
+	EffaceCarre(randCase.L, randCase.C);
 
 }

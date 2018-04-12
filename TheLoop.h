@@ -71,8 +71,11 @@ int mageT = 200; //milisec entre deux déplacements d'un mage
 int clicBille = 3000; //temps avant dispatrition d'une bille
 int attentePFile = 1000; //interval de vérification de place dans la pile/file
 int enfile = 300; //interval descente d'une bille dans la file
-int dercrementation = 1600; //attente avant de décrémenter nbRequetesNonTraites
+int decrementation = 1600; //attente avant de décrémenter nbRequetesNonTraites
 int tEfface = 700; //temps avant d'effacer la bile poussé dans la plaque par le piston
+int attenteMur = 10000; //temps avant de rendre un mur clicable
+int lanceMurMax = 20000;//temps maximum entre 2 création de murs
+int lanceMurMin = 10000;//temps minimum entre 2 lancement de murs
 
 //variables globales
 int nbBilles;
@@ -84,6 +87,7 @@ int videTab[] = {VIDE};
 int indPile = 0;
 int billeEchange;
 unsigned int tAlarm = 5;
+int compteur = 0;
 
 //nombre de bille dans chaque file
 int nbFileJaune = 0;
@@ -107,7 +111,6 @@ pthread_mutex_t mutexEchangeL = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutexEchangeE = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutexFile = PTHREAD_MUTEX_INITIALIZER;
 
-
 //Déclaration & initilisation des variables de conditions
 pthread_cond_t condRequetes = PTHREAD_COND_INITIALIZER;
 pthread_cond_t condPile = PTHREAD_COND_INITIALIZER;
@@ -123,6 +126,8 @@ void * threadMage2(void *);
 void * threadBilleQuiRoule(void *);
 void * threadPiston(void *);
 void * threadChrono(void *);
+void * threadPoseurMur(void *);
+void * threadMur(void *);
 
 
 //prototypes de fonctions

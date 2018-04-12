@@ -1,7 +1,11 @@
 Edits pour compatibilité LINUX:
 
 Sur solaris, un tid est codé sur un unsigned int alors que linux utilise un unsigned long.
-Ce qui peut poser problème avec le tableau étant en int. 
+Ce qui peut poser problème avec le tableau étant en int.
 - tab est un tableau de pthread_t et plus de int
 - RechercheChemin à comme premié parametre un pointeur de pthread_t et plus un pointeru de int
 - les billes ne sont plus négatives dans tab mais incrémentée de 5 avec la macro PRISE()
+
+Autres :
+
+-Remplacement de la librairie Ecran par la macro DBG pour debugging
