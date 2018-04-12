@@ -13,7 +13,7 @@ int main(int argc,char* argv[])
 {
 	sigset_t mask;
 
-	//masquage tous les signaux
+	//masquage signaux
 	sigemptyset(&mask);
   sigaddset(&mask, SIGHUP);
 	sigaddset(&mask, SIGALRM);	sigprocmask(SIG_SETMASK, &mask, NULL);
@@ -393,7 +393,7 @@ void * threadEvent(void * param)
 								DBG("catpture impossible\n");
 							}
 						}
-						else if(tab[event.ligne][event.colonne]  > 0 && tab[event.ligne][event.colonne] < JAUNE)
+						else if(tab[event.ligne][event.colonne]  > 1 && tab[event.ligne][event.colonne] < JAUNE)
 						{
 							pthread_kill(tab[event.ligne][event.colonne], SIGUSR1);
 							DBG("signal envoyé a %d\n", tab[event.ligne][event.colonne]);
@@ -944,24 +944,29 @@ void * threadPiston(void * param)
 		//déplacement du pistion jusqu'a la case avant la file
     while (caseTete.C -1 != cBille)
     {
-      caseTete.C--;
-      DessinePiston(caseTete.L,caseTete.C, TETE);
-      EffaceCarre(caseTete.L, caseTete.C + 1);
-      pthread_mutex_lock(&mutexTab);
-      tab[caseTete.L][caseTete.C] = PISTON;
-      pthread_mutex_unlock(&mutexTab);
+			//si pas de mur
+			if(caseTete.C -1 == 0)
+			{
+	      caseTete.C--;
+	      DessinePiston(caseTete.L,caseTete.C, TETE);
+	      EffaceCarre(caseTete.L, caseTete.C + 1);
+	      pthread_mutex_lock(&mutexTab);
+	      tab[caseTete.L][caseTete.C] = PISTON;
+	      pthread_mutex_unlock(&mutexTab);
 
-			//dessine les tiges / i
-      for (j = 1; j <= i +1; j++)
-      {
-        EffaceCarre(caseTete.L, caseTete.C + j);
-        DessinePiston(caseTete.L, caseTete.C + j, TIGE);
-        pthread_mutex_lock(&mutexTab);
-        tab[caseTete.L][caseTete.C + j] = PISTON;
-        pthread_mutex_unlock(&mutexTab);
-      }
-      i++;
+				//dessine les tiges / i
+	      for (j = 1; j <= i +1; j++)
+	      {
+	        EffaceCarre(caseTete.L, caseTete.C + j);
+	        DessinePiston(caseTete.L, caseTete.C + j, TIGE);
+	        pthread_mutex_lock(&mutexTab);
+	        tab[caseTete.L][caseTete.C + j] = PISTON;
+	        pthread_mutex_unlock(&mutexTab);
+	      }
+      	i++;
+			}
       nanosleep(&waitTemp,NULL);
+
     }
 
 		i = 12; //case la plus basse de la file
@@ -994,24 +999,27 @@ void * threadPiston(void * param)
 		//avance jusqu'au mur
     while (caseTete.C -1 != 11)
     {
-      caseTete.C--;
-			EffaceCarre(caseTete.L,caseTete.C);
-			DessineBille(caseTete.L,caseTete.C -1, couleur);
-      DessinePiston(caseTete.L,caseTete.C, TETE);
-      EffaceCarre(caseTete.L, caseTete.C + 1);
-      pthread_mutex_lock(&mutexTab);
-      tab[caseTete.L][caseTete.C] = PISTON;
-      pthread_mutex_unlock(&mutexTab);
+			if(caseTete.C -1 == 0)
+			{
+	      caseTete.C--;
+				EffaceCarre(caseTete.L,caseTete.C);
+				DessineBille(caseTete.L,caseTete.C -1, couleur);
+	      DessinePiston(caseTete.L,caseTete.C, TETE);
+	      EffaceCarre(caseTete.L, caseTete.C + 1);
+	      pthread_mutex_lock(&mutexTab);
+	      tab[caseTete.L][caseTete.C] = PISTON;
+	      pthread_mutex_unlock(&mutexTab);
 
-      for (j = 1; j <= i + 1; j++)
-      {
-        EffaceCarre(caseTete.L, caseTete.C + j);
-        DessinePiston(caseTete.L, caseTete.C + j, TIGE);
-        pthread_mutex_lock(&mutexTab);
-        tab[caseTete.L][caseTete.C + j] = PISTON;
-        pthread_mutex_unlock(&mutexTab);
-      }
-      i++;
+	      for (j = 1; j <= i + 1; j++)
+	      {
+	        EffaceCarre(caseTete.L, caseTete.C + j);
+	        DessinePiston(caseTete.L, caseTete.C + j, TIGE);
+	        pthread_mutex_lock(&mutexTab);
+	        tab[caseTete.L][caseTete.C + j] = PISTON;
+	        pthread_mutex_unlock(&mutexTab);
+	      }
+	      i++;
+			}
       nanosleep(&effacebille,NULL);
     }
 
@@ -1180,6 +1188,13 @@ void * threadMur(void * param)
 	CASE randCase;
 	int cMin, cMax, sig;
 	sigset_t set;
+	sigset_t mask;
+
+	//masquage signaux
+	sigemptyset(&mask);
+  sigaddset(&mask, SIGHUP);
+	sigaddset(&mask, SIGALRM);	sigprocmask(SIG_SETMASK, &mask, NULL);
+	sigprocmask(SIG_SETMASK, &mask, NULL);
 
 	//creation du set de signaux pour sigwait
 	sigemptyset(&set);
