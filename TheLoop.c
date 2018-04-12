@@ -1200,15 +1200,20 @@ void * threadMur(void * param)
 		cMax = 9;
 	}
 
-
+	pthread_mutex_lock(&mutexTab);
 	do
 	{
+		pthread_mutex_unlock(&mutexTab);
+
 		//row min =0  row max = NB_LIGNES -1
 		randCase.L = (rand() %((NB_LIGNES - 1) - 0 + 1)) + 0;
 		//column min = 0 | 11 column max = 9 | 19
 		randCase.C = (rand() % (cMax - cMin + 1)) + cMin;
-	}
-	while(CaseReservee(randCase));
+
+		pthread_mutex_lock(&mutexTab);
+	}while(CaseReservee(randCase) || tab[randCase.L][randCase.C] != 0);
+	pthread_mutex_unlock(&mutexTab);
+
 
 	//pid négatif dans tab pour empecher le clic
 	pthread_mutex_lock(&mutexTab);
