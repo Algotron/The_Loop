@@ -1012,7 +1012,6 @@ void * threadPiston(void * param)
 			pthread_mutex_unlock(&mutexTab);
 
       nanosleep(&waitTemp,NULL);
-
     }
 
 		i = 12; //case la plus basse de la file
@@ -1020,14 +1019,22 @@ void * threadPiston(void * param)
 		pthread_mutex_lock(&mutexTab);
     while(tab[i][cBille] != 0 && tab[i][cBille] != Mage2)
     {
+			pthread_mutex_unlock(&mutexTab);
+
 			EffaceCarre(i, cBille);
 			DessineBille(i + 1, cBille, couleur);
+
+			pthread_mutex_lock(&mutexTab);
 			tab[i][cBille] = VIDE;
 			tab[i + 1][cBille] = PRISE(couleur);
 			pthread_mutex_unlock(&mutexTab);
 			i--;
 			nanosleep(&waitTemp,NULL);
+
+			pthread_mutex_lock(&mutexTab);
+
     }
+		pthread_mutex_unlock(&mutexTab);
 
 		//decrementation du bon compteur
     pthread_mutex_lock(&mutexFile);
@@ -1069,14 +1076,11 @@ void * threadPiston(void * param)
 	      }
 	      i++;
 				pthread_mutex_lock(&mutexTab);
-
 			}
-			pthread_mutex_lock(&mutexTab);
+			pthread_mutex_unlock(&mutexTab);
 
       nanosleep(&effacebille,NULL);
     }
-
-
 
 		DessineBille(lPiston,11,GRIS);
 
