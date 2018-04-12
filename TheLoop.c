@@ -428,6 +428,8 @@ void * threadStatues(void * param)
 	//masquage de SIGHUP
 	sigemptyset(&mask);
 	sigaddset(&mask, SIGHUP);
+	sigaddset(&mask, SIGUSR1);
+	sigaddset(&mask, SIGALRM);
 	sigprocmask(SIG_SETMASK, &mask, NULL);
 
 	/*mise du tid threadStatues dans tab*/
@@ -535,6 +537,13 @@ int deplacement(CASE destination,int delai)
   timespec waitTime;
   S_IDENTITE * sID = (S_IDENTITE *)malloc(sizeof(S_IDENTITE));
   int couleur;
+	sigset_t sigMasked, sigUnMasked;
+
+	sigemptyset(&sigUnMasked);
+	sigfillset(&sigMasked);
+
+	//demasquage des signaux
+	sigprocmask(SIG_SETMASK, &sigUnMasked, NULL);
 
 	waitTime.tv_sec = delai / 1000;
   waitTime.tv_nsec = (delai % 1000) * 1000000;
@@ -542,18 +551,34 @@ int deplacement(CASE destination,int delai)
   //récupération des données de la v specifique
   sID = (S_IDENTITE *)pthread_getspecific(key);
 
+	//masquage des signaux avant un mutex sur tab
+	sigprocmask(SIG_SETMASK, &sigMasked, NULL);
+
   //si Mage couleur [0][C] dans pile
+	pthread_mutex_lock(&mutexTab);
   if(sID->id == STATUE)
     couleur = PPRISE(tab[destination.L][destination.C]);
   else
     couleur = PPRISE(tab[0][destination.C]);
+	pthread_mutex_unlock(&mutexTab);
+
+	//demasquage des signaux
+	sigprocmask(SIG_SETMASK, &sigUnMasked, NULL);
+
 
   // tant que la position est differente de la destination
   while(sID->position.L != destination.L || sID->position.C != destination.C)
   {
-    pthread_mutex_lock(&mutexTab);
+		//masquage des signaux avant un mutex sur tab
+		sigprocmask(SIG_SETMASK, &sigMasked, NULL);
+
     //recherche du prochain déplacement
+		pthread_mutex_lock(&mutexTab);
     RechercheChemin(&tab[0][0], NB_LIGNES, NB_COLONNES, videTab, 1, sID->position, destination, &chemin);
+		pthread_mutex_unlock(&mutexTab);
+
+		//demasquage des signaux
+		sigprocmask(SIG_SETMASK, &sigUnMasked, NULL);
 
     if (chemin)
     {
@@ -588,18 +613,29 @@ int deplacement(CASE destination,int delai)
       }
 
       EffaceCarre(sID->position.L, sID->position.C);
+
+			//masquage des signaux avant un mutex sur tab
+			sigprocmask(SIG_SETMASK, &sigMasked, NULL);
+
+			pthread_mutex_lock(&mutexTab);
       tab[sID->position.L][sID->position.C] = VIDE;
       tab[chemin->L][chemin->C] = pthread_self();
+			pthread_mutex_unlock(&mutexTab);
+
+			//demasquage des signaux
+			sigprocmask(SIG_SETMASK, &sigUnMasked, NULL);
+
       sID->position.L = chemin->L;
       sID->position.C = chemin->C;
       //mise à jour de la position dans la v specifique
       pthread_setspecific(key, (void*)sID);
       free(chemin);
     }
-    pthread_mutex_unlock(&mutexTab);
     nanosleep(&waitTime, NULL);
   }
 
+	//masquage des signaux avant un mutex sur tab
+	sigprocmask(SIG_SETMASK, &sigMasked, NULL);
   pthread_mutex_lock(&mutexTab);
   EffaceCarre(sID->position.L, sID->position.C);
   pthread_mutex_unlock(&mutexTab);
@@ -621,6 +657,8 @@ void * threadMage1(void * param)
 	//masquage de SIGHUP
 	sigemptyset(&mask);
 	sigaddset(&mask, SIGHUP);
+	sigaddset(&mask, SIGUSR1);
+	sigaddset(&mask, SIGALRM);
 	sigprocmask(SIG_SETMASK, &mask, NULL);
 
   //initilisation cases données
@@ -730,6 +768,8 @@ void * threadMage2(void * param)
 	//masquage de SIGHUP
 	sigemptyset(&mask);
 	sigaddset(&mask, SIGHUP);
+	sigaddset(&mask, SIGUSR1);
+	sigaddset(&mask, SIGALRM);
 	sigprocmask(SIG_SETMASK, &mask, NULL);
 
   //creation du set de signaux pour sigwait
@@ -945,8 +985,11 @@ void * threadPiston(void * param)
     while (caseTete.C -1 != cBille)
     {
 			//si pas de mur
-			if(caseTete.C -1 == 0)
+			pthread_mutex_lock(&mutexTab);
+			if(tab[caseTete.L][caseTete.C -1] == 0)
 			{
+				pthread_mutex_unlock(&mutexTab);
+
 	      caseTete.C--;
 	      DessinePiston(caseTete.L,caseTete.C, TETE);
 	      EffaceCarre(caseTete.L, caseTete.C + 1);
@@ -964,7 +1007,10 @@ void * threadPiston(void * param)
 	        pthread_mutex_unlock(&mutexTab);
 	      }
       	i++;
+				pthread_mutex_lock(&mutexTab);
 			}
+			pthread_mutex_unlock(&mutexTab);
+
       nanosleep(&waitTemp,NULL);
 
     }
@@ -972,7 +1018,7 @@ void * threadPiston(void * param)
 		i = 12; //case la plus basse de la file
 		//on decale la file
 		pthread_mutex_lock(&mutexTab);
-    while(tab[i][cBille] != 0 && tab[i -1][cBille] != Mage2)
+    while(tab[i][cBille] != 0 && tab[i][cBille] != Mage2)
     {
 			EffaceCarre(i, cBille);
 			DessineBille(i + 1, cBille, couleur);
@@ -999,8 +1045,11 @@ void * threadPiston(void * param)
 		//avance jusqu'au mur
     while (caseTete.C -1 != 11)
     {
-			if(caseTete.C -1 == 0)
+			pthread_mutex_lock(&mutexTab);
+			if(tab[caseTete.L][caseTete.C - 2] != 1 || caseTete.C - 2 == 11)
 			{
+				pthread_mutex_unlock(&mutexTab);
+
 	      caseTete.C--;
 				EffaceCarre(caseTete.L,caseTete.C);
 				DessineBille(caseTete.L,caseTete.C -1, couleur);
@@ -1019,9 +1068,15 @@ void * threadPiston(void * param)
 	        pthread_mutex_unlock(&mutexTab);
 	      }
 	      i++;
+				pthread_mutex_lock(&mutexTab);
+
 			}
+			pthread_mutex_lock(&mutexTab);
+
       nanosleep(&effacebille,NULL);
     }
+
+
 
 		DessineBille(lPiston,11,GRIS);
 
