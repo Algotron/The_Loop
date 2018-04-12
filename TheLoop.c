@@ -102,9 +102,12 @@ int main(int argc,char* argv[])
 	DBG("GAME OVER\n");
 	setTitreGrilleSDL("GAME OVER");
 	DessineImageFond("./images/game-over.bmp");
+	DessineStatue(3,7,BAS,ROUGE);
 	DessineChiffre(3, 8, compteur / 100);
 	DessineChiffre(3, 9, (compteur % 100) / 10);
 	DessineChiffre(3, 10,  compteur % 10);
+	DessineStatue(3,11,BAS,ROUGE);
+
 	pause();
 
   /*Fermeture de la grille de jeu (SDL)*/
@@ -347,7 +350,8 @@ void * threadEvent(void * param)
 		switch(event.type)
 		{
 			case CROIX :
-			DBG("Event CROIX\n");
+					DBG("Event CROIX\n");
+					pthread_mutex_unlock(&mutexTab);
 					FermetureFenetreGraphique();
 					exit(0);
 				break;
@@ -1112,6 +1116,9 @@ void * threadPiston(void * param)
 
 void Alrm_Usr1(int sig)
 {
+	pthread_mutex_lock(&mutexTab);
+	pthread_mutex_unlock(&mutexTab);
+
 	timespec prisonTime;
 	int couleurPrison;
 	S_IDENTITE * sID = (S_IDENTITE *)malloc(sizeof(S_IDENTITE));
