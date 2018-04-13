@@ -102,7 +102,7 @@ int main(int argc,char* argv[])
 	DBG("GAME OVER\n");
 	setTitreGrilleSDL("GAME OVER");
 	DessineImageFond("./images/game-over.bmp");
-	DessineStatue(3,7,BAS,ROUGE);
+	DessineMage(3,7,BAS,ROUGE);
 	DessineChiffre(3, 8, compteur / 100);
 	DessineChiffre(3, 9, (compteur % 100) / 10);
 	DessineChiffre(3, 10,  compteur % 10);
